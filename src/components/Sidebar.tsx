@@ -55,7 +55,7 @@ export function Sidebar({ onClose }: SidebarProps = {}) {
           <span className="font-bold text-xl text-foreground line-clamp-1 truncate" title={storeName}>{storeName}</span>
         </div>
         {onClose && (
-          <button onClick={onClose} className="md:hidden p-2 -mr-2 text-muted-foreground hover:bg-secondary rounded-lg">
+          <button onClick={onClose} className="lg:hidden p-2 -mr-2 text-muted-foreground hover:bg-secondary rounded-lg">
             <X className="w-5 h-5" />
           </button>
         )}
