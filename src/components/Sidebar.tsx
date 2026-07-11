@@ -11,7 +11,8 @@ import {
   ShoppingCart, 
   Settings,
   LogOut,
-  Box
+  Box,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/client";
@@ -27,7 +28,11 @@ const menuItems = [
   { name: "Configuración", href: "/settings", icon: Settings, role: "admin" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export function Sidebar({ onClose }: SidebarProps = {}) {
   const pathname = usePathname();
   const { settings, profile } = useSettings();
   const storeName = settings?.store_name || "SweetERP";
@@ -42,11 +47,18 @@ export function Sidebar() {
   return (
     <div className="w-64 border-r border-border bg-card flex flex-col h-screen sticky top-0">
       {/* Logo Area */}
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-          <Cake className="w-6 h-6 text-primary" />
+      <div className="p-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+            <Cake className="w-6 h-6 text-primary" />
+          </div>
+          <span className="font-bold text-xl text-foreground line-clamp-1 truncate" title={storeName}>{storeName}</span>
         </div>
-        <span className="font-bold text-xl text-foreground line-clamp-1 truncate" title={storeName}>{storeName}</span>
+        {onClose && (
+          <button onClick={onClose} className="md:hidden p-2 -mr-2 text-muted-foreground hover:bg-secondary rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Navigation Links */}

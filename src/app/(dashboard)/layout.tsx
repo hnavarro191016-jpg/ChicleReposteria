@@ -1,8 +1,8 @@
-import { Sidebar } from "@/components/Sidebar";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import { SettingsProvider } from "@/context/SettingsContext";
 import { RoleGuard } from "@/components/RoleGuard";
 
-export default function DashboardLayout({
+export default function DashboardRoot({
   children,
 }: {
   children: React.ReactNode;
@@ -10,14 +10,9 @@ export default function DashboardLayout({
   return (
     <SettingsProvider>
       <RoleGuard>
-        <div className="flex min-h-screen bg-background">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto">
-            <div className="p-8 max-w-7xl mx-auto">
-              {children}
-            </div>
-          </main>
-        </div>
+        <DashboardLayout>
+          {children}
+        </DashboardLayout>
       </RoleGuard>
     </SettingsProvider>
   );
