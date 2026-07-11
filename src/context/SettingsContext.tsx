@@ -12,7 +12,7 @@ interface BusinessSettings {
 
 interface UserProfile {
   id: string;
-  role: "admin" | "staff";
+  role: "admin" | "staff" | "pending";
   full_name: string | null;
 }
 
