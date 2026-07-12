@@ -118,11 +118,23 @@ export default function Dashboard() {
     const now = new Date();
     
     if (dateFilter === "semana") {
-      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      filteredOrders = allOrders.filter(o => new Date(o.delivery_date) >= oneWeekAgo && new Date(o.delivery_date) <= now);
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0,0,0,0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23,59,59,999);
+      filteredOrders = allOrders.filter(o => {
+        const d = new Date(o.delivery_date);
+        return d >= startOfWeek && d <= endOfWeek;
+      });
     } else if (dateFilter === "mes") {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      filteredOrders = allOrders.filter(o => new Date(o.delivery_date) >= startOfMonth && new Date(o.delivery_date) <= now);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      filteredOrders = allOrders.filter(o => {
+        const d = new Date(o.delivery_date);
+        return d >= startOfMonth && d <= endOfMonth;
+      });
     }
 
     // Stats for delivered only (profits)
