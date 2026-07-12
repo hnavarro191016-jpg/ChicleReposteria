@@ -14,7 +14,8 @@ import {
   Users,
   Loader2,
   Filter,
-  Gift
+  Gift,
+  Receipt
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
@@ -36,6 +37,7 @@ export default function Dashboard() {
   const [upcomingOrders, setUpcomingOrders] = useState<any[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<any[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<any[]>([]);
+  const [allExpenses, setAllExpenses] = useState<any[]>([]);
   
   const supabase = createClient();
 
@@ -63,17 +65,13 @@ export default function Dashboard() {
       `)
       .order('delivery_date', { ascending: true });
 
-    // Fetch Inventory
-    const { data: inventory } = await supabase
-      .from('inventory_items')
+    // Fetch Expenses
+    const { data: expensesData } = await supabase
+      .from('expenses')
       .select('*');
 
     if (orders) setAllOrders(orders);
-    
-    if (inventory) {
-      const alerts = inventory.filter(i => i.stock <= i.min_stock);
-      setInventoryAlerts(alerts);
-    }
+    if (expensesData) setAllExpenses(expensesData);
 
     // Fetch Clients for birthdays
     const { data: clientsData } = await supabase.from('clients').select('id, name, whatsapp, birthdate');
@@ -112,9 +110,8 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (allOrders.length === 0) return;
-
     let filteredOrders = allOrders;
+    let filteredExpenses = allExpenses;
     const now = new Date();
     
     if (dateFilter === "semana") {
@@ -128,11 +125,19 @@ export default function Dashboard() {
         const d = new Date(o.delivery_date);
         return d >= startOfWeek && d <= endOfWeek;
       });
+      filteredExpenses = allExpenses.filter(e => {
+        const d = new Date(e.date);
+        return d >= startOfWeek && d <= endOfWeek;
+      });
     } else if (dateFilter === "mes") {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
       filteredOrders = allOrders.filter(o => {
         const d = new Date(o.delivery_date);
+        return d >= startOfMonth && d <= endOfMonth;
+      });
+      filteredExpenses = allExpenses.filter(e => {
+        const d = new Date(e.date);
         return d >= startOfMonth && d <= endOfMonth;
       });
     }
@@ -141,14 +146,8 @@ export default function Dashboard() {
     const deliveredOrders = filteredOrders.filter(o => o.status === 'Entregado');
     const totalVentas = deliveredOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
     
-    let totalCost = 0;
-    deliveredOrders.forEach(o => {
-      if (o.order_ingredients) {
-        o.order_ingredients.forEach((ing: any) => {
-          totalCost += (parseFloat(ing.quantity_used || "0") * (ing.inventory_items?.cost || 0));
-        });
-      }
-    });
+    // Total Expenses based on tickets for the period
+    const totalCost = filteredExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
 
     const netProfit = totalVentas - totalCost;
     const profitMargin = totalVentas > 0 ? (netProfit / totalVentas) * 100 : 0;
@@ -191,13 +190,13 @@ export default function Dashboard() {
       });
     setUpcomingOrders(pendingOrders);
 
-  }, [allOrders, dateFilter]);
+  }, [allOrders, allExpenses, dateFilter]);
 
 
 
   const dashboardStats = [
     { label: "Ventas Totales (Cobrado)", value: `$${stats.ventas.toFixed(2)}`, icon: DollarSign, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Costo Insumos", value: `$${stats.inversion.toFixed(2)}`, icon: Package, color: "text-orange-500", bg: "bg-orange-100" },
+    { label: "Gastos (Tickets)", value: `$${stats.inversion.toFixed(2)}`, icon: Receipt, color: "text-orange-500", bg: "bg-orange-100" },
     { label: "Ganancia Neta", value: `$${stats.ganancia.toFixed(2)}`, icon: TrendingUp, color: "text-green-500", bg: "bg-green-100" },
     { label: "Pedidos Activos", value: stats.entregasPendientes.toString(), icon: Cake, color: "text-blue-500", bg: "bg-blue-100" },
     { label: "Por Cobrar", value: stats.pagosPendientes.toString(), icon: CreditCard, color: "text-destructive", bg: "bg-destructive/10" },
@@ -343,24 +342,12 @@ export default function Dashboard() {
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Package className="w-24 h-24" />
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-foreground relative z-10">Alertas de Inventario</h3>
-              <ul className="space-y-3 relative z-10 max-h-[300px] overflow-y-auto">
-                {inventoryAlerts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground bg-white/60 p-4 rounded-xl text-center">
-                    Todo en orden. Tu inventario está sano. ✅
-                  </p>
-                ) : (
-                  inventoryAlerts.map(item => (
-                    <li key={item.id} className="flex items-center justify-between bg-white/60 p-3 rounded-xl backdrop-blur-sm border border-destructive/20">
-                      <span className="font-medium text-sm">{item.name} ({item.unit})</span>
-                      <span className="text-destructive font-bold text-sm">{item.stock}</span>
-                    </li>
-                  ))
-                )}
-              </ul>
+              <h3 className="text-xl font-semibold mb-2 text-foreground relative z-10">Inventario y Catálogo</h3>
+              <p className="text-sm text-muted-foreground mb-5 relative z-10">Gestiona tus productos y existencias.</p>
+              
               <Link href="/inventory">
-                <Button className="w-full mt-5 rounded-xl bg-white text-primary hover:bg-white/90 border border-primary/20">
-                  Ver Inventario Completo
+                <Button className="w-full rounded-xl bg-white text-primary hover:bg-white/90 border border-primary/20 shadow-sm relative z-10">
+                  Ir al Inventario
                 </Button>
               </Link>
             </div>

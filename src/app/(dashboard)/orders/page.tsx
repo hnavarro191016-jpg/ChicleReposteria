@@ -40,8 +40,6 @@ export default function OrdersPage() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [modalStep, setModalStep] = useState<number>(1);
-  const [orderIngredients, setOrderIngredients] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   
   
@@ -128,46 +126,8 @@ export default function OrdersPage() {
     });
   };
 
-  const handleIngredientChange = (index: number, value: string) => {
-    const newIngredients = [...orderIngredients];
-    newIngredients[index].quantity_used = value;
-    setOrderIngredients(newIngredients);
-  };
-
-  const handleRemoveIngredientRow = (index: number) => {
-    const newIngredients = [...orderIngredients];
-    newIngredients.splice(index, 1);
-    setOrderIngredients(newIngredients);
-  };
-
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (modalStep === 1 && orderType === "catalog" && formData.product_id) {
-      // Transition to Step 2: Fetch recipe
-      setIsSubmitting(true);
-      const { data: recipeData } = await supabase
-        .from("recipes")
-        .select("*, inventory_items(name, unit, stock, cost)")
-        .eq("product_id", formData.product_id);
-
-      if (recipeData && recipeData.length > 0) {
-        setOrderIngredients(recipeData.map(r => ({
-          inventory_item_id: r.inventory_item_id,
-          name: r.inventory_items?.name,
-          unit: r.inventory_items?.unit,
-          stock: r.inventory_items?.stock,
-          cost: r.inventory_items?.cost,
-          quantity_used: r.quantity // Default to recipe quantity
-        })));
-      } else {
-        setOrderIngredients([]);
-      }
-      setIsSubmitting(false);
-      setModalStep(2);
-      return;
-    }
-
     setIsSubmitting(true);
     
     // 1. Create the Main Order
@@ -201,35 +161,10 @@ export default function OrdersPage() {
           quantity: 1,
           unit_price: parseFloat(formData.total_amount)
         });
-
-      // 3. Save Order Ingredients & Deduct Inventory (if Step 2 was used)
-      if (modalStep === 2 && orderIngredients.length > 0) {
-        const validIngredients = orderIngredients.filter(ing => parseFloat(ing.quantity_used) > 0);
-        
-        if (validIngredients.length > 0) {
-          // Insert into order_ingredients history
-          const inserts = validIngredients.map(ing => ({
-            order_id: newOrder.id,
-            inventory_item_id: ing.inventory_item_id,
-            quantity_used: parseFloat(ing.quantity_used)
-          }));
-          await supabase.from("order_ingredients").insert(inserts);
-
-          // Deduct from inventory_items
-          for (const ing of validIngredients) {
-            const newStock = (ing.stock || 0) - parseFloat(ing.quantity_used);
-            await supabase
-              .from("inventory_items")
-              .update({ stock: newStock })
-              .eq("id", ing.inventory_item_id);
-          }
-        }
-      }
     }
 
     setIsSubmitting(false);
     setIsModalOpen(false);
-    setModalStep(1);
     setFormData({ client_id: "", product_id: "", custom_name: "", delivery_date: "", total_amount: "", advance_payment: "", notes: "" });
     fetchOrders();
   };
@@ -452,19 +387,16 @@ export default function OrdersPage() {
             <button 
               onClick={() => {
                 setIsModalOpen(false);
-                setModalStep(1);
               }}
               className="absolute top-6 right-6 p-2 bg-secondary/50 rounded-full hover:bg-secondary transition-colors"
             >
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
             
-            <h2 className="text-2xl font-bold mb-6">Nuevo Pedido {modalStep === 2 && "(Paso 2: Producción)"}</h2>
+            <h2 className="text-2xl font-bold mb-6">Nuevo Pedido</h2>
             
             <form onSubmit={handleCreateOrder} className="space-y-4">
               
-              {modalStep === 1 && (
-                <>
                   <div className="grid grid-cols-2 gap-2 mb-4 bg-secondary/30 p-1 rounded-xl">
                 <button
                   type="button"
@@ -577,100 +509,8 @@ export default function OrdersPage() {
                 disabled={isSubmitting}
                 className="w-full rounded-xl h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-white mt-6"
               >
-                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (orderType === "catalog" ? "Continuar a Receta" : "Crear Pedido")}
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Crear Pedido"}
               </Button>
-              </>
-            )}
-
-            {modalStep === 2 && (
-              <div className="animate-in slide-in-from-right-4 duration-300">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Al confirmar, estos ingredientes se descontarán automáticamente de tu inventario. Ajusta las cantidades si es necesario.
-                </p>
-                
-                <div className="space-y-3 mb-6">
-                  {orderIngredients.length === 0 ? (
-                    <div className="p-6 border-2 border-dashed border-border/50 rounded-xl text-center">
-                      <p className="text-muted-foreground font-medium text-sm">Este producto no tiene una receta registrada en el catálogo. No se descontarán insumos.</p>
-                    </div>
-                  ) : (
-                    orderIngredients.map((ing, idx) => (
-                      <div key={idx} className="flex items-center gap-3 bg-secondary/20 p-3 rounded-xl border border-border/50">
-                        <div className="flex-1">
-                          <p className="font-semibold text-sm">{ing.name}</p>
-                          <p className="text-xs text-muted-foreground">Stock actual: {ing.stock} {ing.unit}</p>
-                        </div>
-                        <div className="w-28 relative">
-                          <input 
-                            type="number"
-                            step="0.01"
-                            value={ing.quantity_used}
-                            onChange={(e) => handleIngredientChange(idx, e.target.value)}
-                            className="w-full bg-background border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm pr-8"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-medium">
-                            {ing.unit}
-                          </span>
-                        </div>
-                        <button 
-                          type="button" 
-                          onClick={() => handleRemoveIngredientRow(idx)}
-                          className="text-muted-foreground hover:text-destructive p-1 rounded-md hover:bg-destructive/10"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-                
-                {orderIngredients.length > 0 && (
-                  <div className="bg-primary/5 p-4 rounded-xl mb-6 border border-primary/20 space-y-2">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground font-medium">Costo de Insumos:</span>
-                      <span className="font-semibold text-foreground">
-                        ${orderIngredients.reduce((sum, ing) => sum + ((parseFloat(ing.quantity_used) || 0) * (ing.cost || 0)), 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground font-medium">Precio de Venta:</span>
-                      <span className="font-semibold text-foreground">
-                        ${parseFloat(formData.total_amount || "0").toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm pt-2 border-t border-primary/10">
-                      <span className="text-primary font-bold">Ganancia Estimada:</span>
-                      <span className="font-black text-primary text-lg">
-                        ${(parseFloat(formData.total_amount || "0") - orderIngredients.reduce((sum, ing) => sum + ((parseFloat(ing.quantity_used) || 0) * (ing.cost || 0)), 0)).toFixed(2)}
-                        <span className="text-xs ml-2 font-medium opacity-70">
-                          ({formData.total_amount && parseFloat(formData.total_amount) > 0 ? 
-                            Math.round(((parseFloat(formData.total_amount || "0") - orderIngredients.reduce((sum, ing) => sum + ((parseFloat(ing.quantity_used) || 0) * (ing.cost || 0)), 0)) / parseFloat(formData.total_amount)) * 100) 
-                            : 0}%)
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-3 mt-6 pt-4 border-t border-border/50">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => setModalStep(1)}
-                    className="flex-1 rounded-xl h-12"
-                  >
-                    Atrás
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className="flex-[2] rounded-xl h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-white"
-                  >
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Finalizar Pedido"}
-                  </Button>
-                </div>
-              </div>
-            )}
             </form>
           </div>
         </div>

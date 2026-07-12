@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Box,
+  Receipt,
   X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const menuItems = [
   { name: "Clientes (CRM)", href: "/clients", icon: Users },
   { name: "Catálogo", href: "/catalog", icon: Package },
   { name: "Inventario", href: "/inventory", icon: Box },
+  { name: "Gastos", href: "/expenses", icon: Receipt },
   { name: "Configuración", href: "/settings", icon: Settings, role: "admin" },
 ];
 
