@@ -260,6 +260,11 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         backgroundColor: '#ffffff',
         width: targetWidth,
         height: height,
+        filter: (node: any) => {
+          // Filtrar el botón de basura para que no salga en el PDF
+          if (node?.classList?.contains('trash-btn')) return false;
+          return true;
+        },
         style: {
           width: '800px',
           minWidth: '800px',
