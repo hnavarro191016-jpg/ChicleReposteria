@@ -16,8 +16,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No se ha configurado GEMINI_API_KEY en el entorno' }, { status: 500 });
     }
 
-    // Usar Gemini 1.5 Flash (ideal para OCR rápido y barato)
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    let modelName = "gemini-1.5-flash";
+    let model = genAI.getGenerativeModel({ model: modelName });
 
     const prompt = `
 Eres un asistente experto en contabilidad.
@@ -43,7 +43,20 @@ Si no puedes detectar la información, devuelve "Desconocido" y 0 respectivament
       }
     ];
 
-    const result = await model.generateContent([prompt, ...imageParts]);
+    let result;
+    try {
+      result = await model.generateContent([prompt, ...imageParts]);
+    } catch (fallbackError: any) {
+      if (fallbackError.message?.includes('404')) {
+        console.log("gemini-1.5-flash not found, falling back to gemini-1.5-pro");
+        modelName = "gemini-1.5-pro";
+        model = genAI.getGenerativeModel({ model: modelName });
+        result = await model.generateContent([prompt, ...imageParts]);
+      } else {
+        throw fallbackError;
+      }
+    }
+
     const responseText = result.response.text();
     
     // Limpiar posible formato markdown que regrese Gemini
