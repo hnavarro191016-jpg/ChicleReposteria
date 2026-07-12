@@ -288,7 +288,6 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         .from("orders")
         .insert({
           client_id: currentClientId,
-          order_type: "custom",
           delivery_date: orderDeliveryDate,
           total_amount: total,
           advance_payment: parseFloat(orderAdvancePayment) || 0,
