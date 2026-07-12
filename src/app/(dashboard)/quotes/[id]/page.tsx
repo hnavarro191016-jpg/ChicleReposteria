@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Download, CheckCircle, FileText, User, Phone, Calendar, Save, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Trash2, Download, CheckCircle, FileText, User, Phone, Calendar, Save, ArrowLeft, Loader2, Cake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 
@@ -36,6 +36,14 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   const [newItemDesc, setNewItemDesc] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
   
+  // Cake Builder Modal State
+  const [showCakeModal, setShowCakeModal] = useState(false);
+  const [cakeDesc, setCakeDesc] = useState("");
+  const [cakePrice, setCakePrice] = useState("");
+  const [cakePan, setCakePan] = useState("Vainilla");
+  const [cakeRelleno, setCakeRelleno] = useState("Chocolate");
+  const [cakeBetun, setCakeBetun] = useState("Chantilly");
+
   // Registration Modal State
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   
@@ -49,8 +57,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
 
   const fetchQuote = async () => {
     setLoading(true);
-    // Fetch quote
-    const { data: quote, error: quoteError } = await supabase
+    const { data: quote } = await supabase
       .from("quotes")
       .select("*")
       .eq("id", quoteId)
@@ -66,7 +73,6 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         setDate(new Date(quote.created_at).toISOString().split("T")[0]);
       }
       
-      // Fetch items
       const { data: quoteItems } = await supabase
         .from("quote_items")
         .select("*")
@@ -97,6 +103,32 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
     ]);
     setNewItemDesc("");
     setNewItemPrice("");
+  };
+
+  const addCakeItem = () => {
+    if (!cakeDesc || !cakePrice) {
+      alert("Por favor ponle nombre y precio al pastel.");
+      return;
+    }
+    
+    // Format the description with the cake details
+    const formattedDesc = `${cakeDesc}\n• Pan: ${cakePan}\n• Relleno: ${cakeRelleno}\n• Betún: ${cakeBetun}`;
+    
+    setItems([
+      ...items,
+      {
+        local_id: Math.random().toString(36).substr(2, 9),
+        description: formattedDesc,
+        price: parseFloat(cakePrice)
+      }
+    ]);
+    
+    setShowCakeModal(false);
+    setCakeDesc("");
+    setCakePrice("");
+    setCakePan("Vainilla");
+    setCakeRelleno("Chocolate");
+    setCakeBetun("Chantilly");
   };
 
   const removeItem = (local_id: string) => {
@@ -147,11 +179,9 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         })
         .eq("id", currentQuoteId);
         
-      // Delete old items and insert new (simplest way to handle sync for now)
       await supabase.from("quote_items").delete().eq("quote_id", currentQuoteId);
     }
 
-    // Insert items
     if (items.length > 0) {
       const itemsToInsert = items.map(item => ({
         quote_id: currentQuoteId,
@@ -173,7 +203,6 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
     const newStatus = status === "approved" ? "pending" : "approved";
     setStatus(newStatus);
     
-    // Si se acaba de aprobar, sugerimos registrar al cliente
     if (newStatus === "approved") {
       setShowRegisterModal(true);
     }
@@ -202,7 +231,6 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
     const html2pdf = (await import("html2pdf.js" as any)).default;
     const element = pdfRef.current;
     
-    // Hide the trash buttons momentarily before generating PDF
     const trashButtons = element?.querySelectorAll('.trash-btn');
     trashButtons?.forEach(btn => (btn as HTMLElement).style.display = 'none');
 
@@ -216,7 +244,6 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
     
     await html2pdf().set(opt).from(element).save();
 
-    // Restore trash buttons
     trashButtons?.forEach(btn => (btn as HTMLElement).style.display = 'flex');
   };
 
@@ -229,12 +256,12 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto pb-20">
       {/* Control Panel */}
       <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <Button variant="ghost" className="mb-2 -ml-4 text-muted-foreground" onClick={() => router.push('/quotes')}>
+            <Button variant="ghost" className="mb-2 -ml-4 text-muted-foreground hover:bg-secondary" onClick={() => router.push('/quotes')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Volver a Cotizaciones
             </Button>
@@ -242,7 +269,6 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
               <FileText className="w-6 h-6 text-primary" />
               {isNew ? "Nueva Cotización" : "Editar Cotización"}
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">Crea y administra esta cotización.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <Button 
@@ -261,9 +287,9 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
               <CheckCircle className="w-4 h-4" />
               {status === "approved" ? "Aprobada" : "Marcar Aprobada"}
             </Button>
-            <Button onClick={generatePDF} className="flex-1 md:flex-none gap-2 bg-primary hover:bg-primary/90 text-white">
+            <Button onClick={generatePDF} className="flex-1 md:flex-none gap-2 bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/20">
               <Download className="w-4 h-4" />
-              PDF
+              Descargar PDF
             </Button>
           </div>
         </div>
@@ -309,27 +335,38 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1 ml-1 text-foreground">Cumpleaños</label>
+            <label className="block text-sm font-medium mb-1 ml-1 text-foreground">Fecha</label>
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input 
                 type="date" 
-                value={clientBirthdate}
-                onChange={e => setClientBirthdate(e.target.value)}
+                value={date}
+                onChange={e => setDate(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
               />
             </div>
           </div>
         </div>
 
-        <div className="p-4 bg-muted/30 rounded-xl space-y-4 border border-border/50">
-          <h3 className="font-semibold text-sm text-foreground">Agregar Conceptos</h3>
-          <div className="flex flex-col md:flex-row gap-3">
+        <div className="p-5 bg-muted/30 rounded-xl space-y-4 border border-border/50">
+          <div className="flex justify-between items-center">
+            <h3 className="font-bold text-base text-foreground">Conceptos de la Cotización</h3>
+            <Button 
+              onClick={() => setShowCakeModal(true)}
+              className="bg-pink-100 hover:bg-pink-200 text-pink-700 shadow-sm border border-pink-200 gap-2 h-9"
+            >
+              <Cake className="w-4 h-4" />
+              Armar Pastel
+            </Button>
+          </div>
+          
+          {/* Default Free-text input */}
+          <div className="flex flex-col md:flex-row gap-3 pt-2">
             <input 
               type="text"
               value={newItemDesc}
               onChange={e => setNewItemDesc(e.target.value)}
-              placeholder="Descripción (ej. Pastel de Chocolate Fondant)"
+              placeholder="Concepto libre (ej. Letrero extra de Feliz Cumpleaños)"
               className="flex-1 px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
               onKeyDown={(e) => e.key === 'Enter' && addItem()}
             />
@@ -345,7 +382,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                   onKeyDown={(e) => e.key === 'Enter' && addItem()}
                 />
               </div>
-              <Button onClick={addItem} className="bg-secondary hover:bg-secondary/80 text-secondary-foreground shrink-0 rounded-xl h-[42px]">
+              <Button onClick={addItem} className="bg-primary hover:bg-primary/90 text-white shrink-0 rounded-xl h-[42px]">
                 <Plus className="w-5 h-5" />
               </Button>
             </div>
@@ -405,17 +442,17 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                 ) : (
                   items.map((item) => (
                     <tr key={item.local_id} className="border-b border-gray-100 group hover:bg-gray-50 transition-colors">
-                      <td className="py-4 px-4 text-gray-800 flex items-center gap-3 font-medium">
+                      <td className="py-4 px-4 text-gray-800 flex items-start gap-3 font-medium">
                         <button 
                           onClick={() => removeItem(item.local_id)}
-                          className="trash-btn text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                          className="trash-btn mt-1 text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
                           title="Eliminar"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-                        {item.description}
+                        <span className="whitespace-pre-wrap">{item.description}</span>
                       </td>
-                      <td className="py-4 px-4 text-gray-800 text-right font-bold text-lg">
+                      <td className="py-4 px-4 text-gray-800 text-right font-bold text-lg align-top">
                         ${item.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
@@ -444,6 +481,96 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
       </div>
+
+      {/* Modal Creador de Pastel */}
+      {showCakeModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-border">
+            <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
+              <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Cake className="w-6 h-6 text-pink-500" />
+                Crea tu Pastel
+              </h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold mb-1 text-foreground">Nombre del Pastel</label>
+                <input 
+                  type="text" 
+                  value={cakeDesc}
+                  onChange={e => setCakeDesc(e.target.value)}
+                  placeholder="Ej. Pastel Chico Cumpleaños"
+                  className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold mb-1 text-pink-500">Tipo de Pan</label>
+                  <select 
+                    value={cakePan} 
+                    onChange={e => setCakePan(e.target.value)}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                  >
+                    <option>Vainilla</option>
+                    <option>Chocolate</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold mb-1 text-pink-500">Tipo de Relleno</label>
+                  <select 
+                    value={cakeRelleno} 
+                    onChange={e => setCakeRelleno(e.target.value)}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                  >
+                    <option>Chocolate</option>
+                    <option>Cajeta</option>
+                    <option>Cremoso de Oreo</option>
+                    <option>Cremoso de Lotus</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1 text-pink-500">Tipo de Betún</label>
+                <select 
+                  value={cakeBetun} 
+                  onChange={e => setCakeBetun(e.target.value)}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                >
+                  <option>Chantilly</option>
+                  <option>Mantequilla</option>
+                </select>
+              </div>
+
+              <div className="pt-2">
+                <label className="block text-sm font-bold mb-1 text-foreground">Precio Acordado</label>
+                <div className="relative w-full">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">$</span>
+                  <input 
+                    type="number"
+                    value={cakePrice}
+                    onChange={e => setCakePrice(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full pl-8 pr-4 py-3 bg-background border-2 border-primary/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary text-foreground font-bold text-lg"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-border">
+              <Button variant="ghost" onClick={() => setShowCakeModal(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={addCakeItem} className="bg-primary hover:bg-primary/90 text-white px-6">
+                Agregar Pastel a Cotización
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Registro de Cliente */}
       {showRegisterModal && (
