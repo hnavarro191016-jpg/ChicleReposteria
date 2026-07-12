@@ -45,10 +45,17 @@ export default function LoginPage() {
         className="bg-card w-full max-w-md rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-border/50"
       >
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
-            <Cake className="w-8 h-8 text-primary" />
+          <div className="w-24 h-24 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 overflow-hidden shadow-sm border border-primary/20">
+            <img 
+              src="/logo.png" 
+              alt="Chicle Repostería" 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNlYzQ4OTkiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAgMjF2LThhMiAyIDAgMCAwLTItMkg2YTIgMiAwIDAgMC0yIDJ2OCIvPjxwYXRoIGQ9Ik00IDE2cy41LTEgMi0xIDIuNSAyIDQgMiAyLjUtMiA0LTIgMi41IDIgNCAyIDItMSA0LTEiLz48cGF0aCBkPSJNMTEgMTNoMnoiLz48cGF0aCBkPSJNMTAgOWEyIDIgMCAxIDAtNCswIi8+PC9zdmc+';
+              }} 
+            />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">¡Hola de nuevo!</h1>
+          <h1 className="text-3xl font-bold text-foreground text-center">¡Hola de nuevo!</h1>
           <p className="text-muted-foreground mt-2 text-center">Inicia sesión en tu cuenta de SweetERP.</p>
         </div>
 

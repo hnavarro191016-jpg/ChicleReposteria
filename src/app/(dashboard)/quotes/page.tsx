@@ -1,273 +1,244 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Calculator, Plus, Trash2, ArrowRight, DollarSign, Clock, Percent } from "lucide-react";
+import { useState, useRef } from "react";
+import { Plus, Trash2, Download, CheckCircle, FileText, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/utils/supabase/client";
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  cost: number;
-  unit: string;
-}
 
 interface QuoteItem {
   id: string;
-  inventory_id: string;
-  name: string;
-  quantity: number;
-  cost_per_unit: number;
-  unit: string;
+  description: string;
+  price: number;
 }
 
 export default function QuotesPage() {
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  
-  // Quote State
+  const [clientName, setClientName] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [items, setItems] = useState<QuoteItem[]>([]);
-  const [selectedIngredient, setSelectedIngredient] = useState("");
-  const [quantity, setQuantity] = useState("1");
+  const [isApproved, setIsApproved] = useState(false);
   
-  // Labor & Pricing State
-  const [hoursWorked, setHoursWorked] = useState("0");
-  const [hourlyRate, setHourlyRate] = useState("0");
-  const [salePrice, setSalePrice] = useState("0");
+  const [newItemDesc, setNewItemDesc] = useState("");
+  const [newItemPrice, setNewItemPrice] = useState("");
+  
+  const pdfRef = useRef<HTMLDivElement>(null);
 
-  const supabase = createClient();
-
-  useEffect(() => {
-    fetchInventory();
-  }, []);
-
-  const fetchInventory = async () => {
-    const { data } = await supabase
-      .from("inventory_items")
-      .select("id, name, cost, unit")
-      .order("name", { ascending: true });
-    
-    if (data) setInventory(data);
-  };
-
-  const addIngredient = () => {
-    if (!selectedIngredient || !quantity) return;
-    
-    const item = inventory.find(i => i.id === selectedIngredient);
-    if (!item) return;
-
-    const newItem: QuoteItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      inventory_id: item.id,
-      name: item.name,
-      quantity: parseFloat(quantity),
-      cost_per_unit: item.cost,
-      unit: item.unit
-    };
-
-    setItems([...items, newItem]);
-    setSelectedIngredient("");
-    setQuantity("1");
+  const addItem = () => {
+    if (!newItemDesc || !newItemPrice) return;
+    setItems([
+      ...items,
+      {
+        id: Math.random().toString(36).substr(2, 9),
+        description: newItemDesc,
+        price: parseFloat(newItemPrice)
+      }
+    ]);
+    setNewItemDesc("");
+    setNewItemPrice("");
   };
 
   const removeItem = (id: string) => {
     setItems(items.filter(i => i.id !== id));
   };
 
-  // Calculations
-  const totalMaterials = items.reduce((acc, item) => acc + (item.quantity * item.cost_per_unit), 0);
-  const totalLabor = parseFloat(hoursWorked || "0") * parseFloat(hourlyRate || "0");
-  const totalCost = totalMaterials + totalLabor;
-  
-  const finalPrice = parseFloat(salePrice || "0");
-  const profit = finalPrice - totalCost;
-  const profitMargin = finalPrice > 0 ? (profit / finalPrice) * 100 : 0;
+  const total = items.reduce((sum, item) => sum + item.price, 0);
+
+  const generatePDF = async () => {
+    if (typeof window === "undefined") return;
+    // We dynamically import html2pdf so it only loads on the client
+    const html2pdf = (await import("html2pdf.js" as any)).default;
+    const element = pdfRef.current;
+    
+    // Hide the trash buttons momentarily before generating PDF
+    const trashButtons = element?.querySelectorAll('.trash-btn');
+    trashButtons?.forEach(btn => (btn as HTMLElement).style.display = 'none');
+
+    const opt = {
+      margin: 0.5,
+      filename: `Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+    
+    await html2pdf().set(opt).from(element).save();
+
+    // Restore trash buttons
+    trashButtons?.forEach(btn => (btn as HTMLElement).style.display = 'flex');
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-6xl mx-auto">
-      
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Cotizador Inteligente</h1>
-          <p className="text-muted-foreground mt-1 text-lg">Calcula costos reales, horas de trabajo y margen de ganancia.</p>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+      {/* Control Panel */}
+      <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground">
+              <FileText className="w-6 h-6 text-primary" />
+              Generador de Cotizaciones
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">Crea cotizaciones en PDF para enviarlas por WhatsApp.</p>
+          </div>
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <Button 
+              variant={isApproved ? "default" : "outline"}
+              className={`flex-1 md:flex-none gap-2 ${isApproved ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''}`}
+              onClick={() => setIsApproved(!isApproved)}
+            >
+              <CheckCircle className="w-4 h-4" />
+              {isApproved ? "Cotización Aprobada" : "Marcar como Aprobada"}
+            </Button>
+            <Button onClick={generatePDF} className="flex-1 md:flex-none gap-2 bg-primary hover:bg-primary/90 text-white">
+              <Download className="w-4 h-4" />
+              Descargar PDF
+            </Button>
+          </div>
         </div>
-        <Button className="rounded-xl h-12 px-6 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25 gap-2">
-          <Calculator className="w-5 h-5" />
-          <span className="font-semibold">Guardar Receta/Cotización</span>
-        </Button>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Left Column: Ingredients Builder */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <span className="bg-primary/10 text-primary p-2 rounded-lg"><Plus className="w-5 h-5" /></span>
-              Agregar Ingredientes
-            </h2>
-            
-            <div className="flex items-end gap-3 mb-6">
-              <div className="flex-1">
-                <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Ingrediente</label>
-                <select 
-                  value={selectedIngredient}
-                  onChange={(e) => setSelectedIngredient(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                >
-                  <option value="">Selecciona un ingrediente del inventario...</option>
-                  {inventory.map(item => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} (${item.cost.toFixed(2)} / {item.unit})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="w-32">
-                <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Cantidad</label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1 ml-1 text-foreground">Nombre del Cliente</label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input 
+                type="text" 
+                value={clientName}
+                onChange={e => setClientName(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                placeholder="Ej. María Sánchez"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1 ml-1 text-foreground">Fecha</label>
+            <input 
+              type="date" 
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+            />
+          </div>
+        </div>
+
+        <div className="p-4 bg-muted/30 rounded-xl space-y-4 border border-border/50">
+          <h3 className="font-semibold text-sm text-foreground">Agregar Conceptos</h3>
+          <div className="flex flex-col md:flex-row gap-3">
+            <input 
+              type="text"
+              value={newItemDesc}
+              onChange={e => setNewItemDesc(e.target.value)}
+              placeholder="Descripción (ej. Pastel de Chocolate Fondant)"
+              className="flex-1 px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+              onKeyDown={(e) => e.key === 'Enter' && addItem()}
+            />
+            <div className="flex gap-3">
+              <div className="relative w-full md:w-32">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <input 
-                  type="number" 
-                  step="0.01"
-                  min="0"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  type="number"
+                  value={newItemPrice}
+                  onChange={e => setNewItemPrice(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full pl-8 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                  onKeyDown={(e) => e.key === 'Enter' && addItem()}
                 />
               </div>
-              <Button onClick={addIngredient} className="rounded-xl h-[50px] px-6 bg-secondary text-secondary-foreground hover:bg-secondary/80">
-                Agregar
+              <Button onClick={addItem} className="bg-secondary hover:bg-secondary/80 text-secondary-foreground shrink-0 rounded-xl h-[42px]">
+                <Plus className="w-5 h-5" />
               </Button>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* List of added ingredients */}
-            <div className="space-y-3">
-              {items.length === 0 ? (
-                <div className="text-center py-8 border-2 border-dashed border-border/50 rounded-2xl">
-                  <p className="text-muted-foreground text-sm font-medium">No has agregado ingredientes a esta cotización.</p>
+      {/* PDF Preview Area */}
+      <div className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-border overflow-x-auto">
+        <div ref={pdfRef} className="min-w-[600px] text-black bg-white p-4">
+          {/* Header */}
+          <div className="flex justify-between items-start border-b-2 border-pink-200 pb-6 mb-8">
+            <div className="flex items-center gap-6">
+              {/* Logo Box */}
+              <div className="w-24 h-24 bg-pink-50 rounded-2xl flex items-center justify-center overflow-hidden border-2 border-pink-100 shadow-sm">
+                <img 
+                  src="/logo.png" 
+                  alt="Chicle Repostería" 
+                  className="w-full h-full object-cover" 
+                  onError={(e) => {
+                    // Fallback to text/icon if logo.png doesn't exist
+                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNlYzQ4OTkiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAgMjF2LThhMiAyIDAgMCAwLTItMkg2YTIgMiAwIDAgMC0yIDJ2OCIvPjxwYXRoIGQ9Ik00IDE2cy41LTEgMi0xIDIuNSAyIDQgMiAyLjUtMiA0LTIgMi41IDIgNCAyIDItMSA0LTEiLz48cGF0aCBkPSJNMTEgMTNoMnoiLz48cGF0aCBkPSJNMTAgOWEyIDIgMCAxIDAtNCswIi8+PC9zdmc+';
+                  }} 
+                />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-pink-500 tracking-tighter">CHICLE</h2>
+                <h3 className="text-xl font-bold text-gray-700 tracking-widest uppercase mt-1">Repostería</h3>
+                <p className="text-sm text-gray-500 mt-2 font-medium">Cotización de Servicios</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-bold text-gray-800">Fecha: <span className="font-normal text-gray-600">{date}</span></p>
+              <p className="text-sm font-bold text-gray-800 mt-1">Cliente: <span className="font-normal text-gray-600">{clientName || "________________"}</span></p>
+              {isApproved && (
+                <div className="mt-6 inline-block border-2 border-green-500 text-green-600 font-bold px-4 py-1.5 rounded-lg text-sm transform -rotate-12 shadow-sm bg-green-50">
+                  ✓ APROBADA
                 </div>
-              ) : (
-                items.map(item => (
-                  <div key={item.id} className="flex items-center justify-between bg-background border border-border/50 p-4 rounded-2xl group hover:border-primary/30 transition-colors">
-                    <div>
-                      <h4 className="font-bold text-foreground">{item.name}</h4>
-                      <p className="text-sm text-muted-foreground">{item.quantity} {item.unit} x ${item.cost_per_unit.toFixed(2)}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-bold text-lg">${(item.quantity * item.cost_per_unit).toFixed(2)}</span>
-                      <button onClick={() => removeItem(item.id)} className="text-destructive/50 hover:text-destructive transition-colors">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
               )}
             </div>
-            
-            {items.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-center px-2">
-                <span className="text-muted-foreground font-semibold">Total Ingredientes:</span>
-                <span className="text-xl font-bold">${totalMaterials.toFixed(2)}</span>
-              </div>
-            )}
           </div>
 
-          <div className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <span className="bg-blue-500/10 text-blue-500 p-2 rounded-lg"><Clock className="w-5 h-5" /></span>
-              Mano de Obra
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Horas de Trabajo Estimadas</label>
-                <input 
-                  type="number" 
-                  step="0.5"
-                  min="0"
-                  value={hoursWorked}
-                  onChange={(e) => setHoursWorked(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  placeholder="Ej. 2.5"
-                />
+          {/* Table */}
+          <div className="min-h-[300px]">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="py-3 px-4 font-bold text-gray-800 w-3/4 text-lg">Concepto</th>
+                  <th className="py-3 px-4 font-bold text-gray-800 text-right text-lg">Importe</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="py-12 text-center text-gray-400 italic">No has agregado ningún concepto a la cotización.</td>
+                  </tr>
+                ) : (
+                  items.map((item) => (
+                    <tr key={item.id} className="border-b border-gray-100 group hover:bg-gray-50 transition-colors">
+                      <td className="py-4 px-4 text-gray-800 flex items-center gap-3 font-medium">
+                        <button 
+                          onClick={() => removeItem(item.id)}
+                          className="trash-btn text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        {item.description}
+                      </td>
+                      <td className="py-4 px-4 text-gray-800 text-right font-bold text-lg">
+                        ${item.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Total */}
+          <div className="flex justify-end mt-8">
+            <div className="w-1/2 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-600 font-medium">Subtotal</span>
+                <span className="font-semibold text-gray-800">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Tu Tarifa por Hora ($)</label>
-                <input 
-                  type="number" 
-                  step="1"
-                  min="0"
-                  value={hourlyRate}
-                  onChange={(e) => setHourlyRate(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  placeholder="Ej. 150"
-                />
+              <div className="flex justify-between items-center text-2xl font-black mt-4 pt-4 border-t-2 border-gray-200">
+                <span className="text-gray-900">Total</span>
+                <span className="text-pink-600">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-border/50 flex justify-between items-center px-2">
-              <span className="text-muted-foreground font-semibold">Costo Mano de Obra:</span>
-              <span className="text-xl font-bold text-blue-600 dark:text-blue-400">${totalLabor.toFixed(2)}</span>
             </div>
           </div>
-        </div>
-
-        {/* Right Column: Pricing Strategy */}
-        <div className="space-y-6">
-          <div className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm sticky top-24">
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <span className="bg-green-500/10 text-green-500 p-2 rounded-lg"><DollarSign className="w-5 h-5" /></span>
-              Resumen Financiero
-            </h2>
-
-            <div className="space-y-4 mb-8">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Insumos</span>
-                <span className="font-semibold">${totalMaterials.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Mano de Obra</span>
-                <span className="font-semibold">${totalLabor.toFixed(2)}</span>
-              </div>
-              <div className="pt-3 border-t border-border/50 flex justify-between items-center">
-                <span className="font-bold text-foreground">Costo Real Total</span>
-                <span className="font-bold text-xl">${totalCost.toFixed(2)}</span>
-              </div>
-            </div>
-
-            <div className="bg-secondary/30 rounded-2xl p-5 mb-6">
-              <label className="block text-xs font-bold text-primary mb-2 uppercase tracking-wider">Precio de Venta al Público</label>
-              <div className="relative">
-                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                <input 
-                  type="number" 
-                  value={salePrice}
-                  onChange={(e) => setSalePrice(e.target.value)}
-                  className="w-full bg-background border border-primary/20 rounded-xl py-4 pl-12 pr-4 text-2xl font-black text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-inner"
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-
-            <div className={`rounded-2xl p-5 border ${profit > 0 ? 'bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-900/30' : 'bg-orange-50 border-orange-200 dark:bg-orange-900/10 dark:border-orange-900/30'}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-sm font-bold uppercase tracking-wider flex items-center gap-1 ${profit > 0 ? 'text-green-700 dark:text-green-400' : 'text-orange-700 dark:text-orange-400'}`}>
-                  <Percent className="w-4 h-4" /> Margen de Ganancia
-                </span>
-              </div>
-              <div className="flex items-end justify-between mt-2">
-                <div>
-                  <span className={`text-3xl font-black ${profit > 0 ? 'text-green-600 dark:text-green-500' : 'text-orange-600 dark:text-orange-500'}`}>
-                    {profitMargin.toFixed(1)}%
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs text-muted-foreground block mb-0.5">Ganancia Neta</span>
-                  <span className="font-bold text-lg text-foreground">${profit.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-
+          
+          <div className="mt-16 text-center text-sm font-medium text-gray-400 border-t-2 border-gray-100 pt-6">
+            <p>Gracias por elegir Chicle Repostería.</p>
           </div>
         </div>
-
       </div>
     </div>
   );
