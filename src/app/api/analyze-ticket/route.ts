@@ -53,24 +53,38 @@ Si no puedes detectar la información, devuelve "Desconocido" y 0 respectivament
         const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
         if (modelsRes.ok) {
           const modelsData = await modelsRes.json();
-          // Find the first model that supports vision/generateContent
+          // Find all models that support vision/generateContent
           const availableModels = modelsData.models || [];
-          const visionModel = availableModels.find((m: any) => 
+          const validModels = availableModels.filter((m: any) => 
             m.supportedGenerationMethods.includes('generateContent') && 
             (m.name.includes('flash') || m.name.includes('pro')) &&
-            !m.name.includes('vision') // older vision model might be broken
+            !m.name.includes('vision')
           );
           
-          if (visionModel) {
-            modelName = visionModel.name.replace('models/', '');
-            console.log("Auto-discovered model:", modelName);
-            model = genAI.getGenerativeModel({ model: modelName });
-            result = await model.generateContent([prompt, ...imageParts]);
-          } else {
-            // Fallback to a hardcoded newer model if discovery fails finding a good one
-            modelName = "gemini-2.0-flash";
-            model = genAI.getGenerativeModel({ model: modelName });
-            result = await model.generateContent([prompt, ...imageParts]);
+          // Sort models by name descending so newer versions (like 3.0 or 2.5) come first.
+          validModels.sort((a: any, b: any) => b.name.localeCompare(a.name));
+          
+          let lastError = fallbackError;
+          // Try up to 3 newest models
+          for (const vModel of validModels.slice(0, 3)) {
+            try {
+              modelName = vModel.name.replace('models/', '');
+              console.log("Attempting auto-discovered model:", modelName);
+              model = genAI.getGenerativeModel({ model: modelName });
+              result = await model.generateContent([prompt, ...imageParts]);
+              lastError = null;
+              break; // Success!
+            } catch (err: any) {
+              console.log(`Model ${modelName} failed:`, err.message);
+              lastError = err;
+            }
+          }
+          
+          if (lastError) {
+             return NextResponse.json({ 
+                 error: `Falló al intentar modelos. Último error: ${lastError.message}`, 
+                 details: validModels.map((m: any) => m.name).join(', ') 
+             }, { status: 500 });
           }
         } else {
           throw fallbackError;
