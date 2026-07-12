@@ -241,9 +241,8 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   const generatePDF = async () => {
     if (typeof window === "undefined") return;
     try {
-      // Dynamic import that handles both ESM and CommonJS
-      const html2pdfModule = await import("html2pdf.js");
-      const html2pdf = html2pdfModule.default || html2pdfModule;
+      const { jsPDF } = await import("jspdf");
+      const htmlToImage = await import("html-to-image");
       
       const element = pdfRef.current;
       if (!element) return;
@@ -251,22 +250,28 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
       const trashButtons = element.querySelectorAll('.trash-btn');
       trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'none');
 
-      const opt: any = {
-        margin: 0.5,
-        filename: `Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
+      // Generar imagen en alta resolución
+      const dataUrl = await htmlToImage.toJpeg(element, { 
+        quality: 0.98,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff'
+      });
+
+      // Crear PDF con proporciones correctas
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [element.offsetWidth, element.offsetHeight]
+      });
       
-      await html2pdf().set(opt).from(element).save();
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, element.offsetWidth, element.offsetHeight);
+      pdf.save(`Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`);
 
       trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
     } catch (error: any) {
       console.error("PDF generation failed:", error);
       alert("Hubo un error al generar el PDF: " + (error?.message || "Error desconocido."));
       
-      // Restore trash buttons if it failed mid-way
       const element = pdfRef.current;
       if (element) {
         const trashButtons = element.querySelectorAll('.trash-btn');
