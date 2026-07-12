@@ -98,13 +98,13 @@ export default function ExpensesPage() {
             amount: data.amount > 0 ? data.amount.toString() : prev.amount
           }));
         } else {
-          const errText = await response.text();
-          console.error("Error analizando:", errText);
-          alert(`No pudimos leer automáticamente (Error: ${response.status}). Revisa manualmente.`);
+          const errData = await response.json();
+          console.error("Error analizando:", errData);
+          alert(`Error del Servidor: ${errData.error || errData.details || 'Error desconocido'}`);
         }
-      } catch(e) {
+      } catch(e: any) {
         console.error("Fetch error:", e);
-        alert("Ocurrió un error al enviar la imagen. Revisa tu conexión.");
+        alert("Ocurrió un error al enviar la imagen: " + e.message);
       } finally {
         setIsAnalyzing(false);
       }
