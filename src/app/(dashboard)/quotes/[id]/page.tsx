@@ -241,61 +241,44 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   const generatePDF = async () => {
     if (typeof window === "undefined") return;
     try {
-      const { jsPDF } = await import("jspdf");
-      const htmlToImage = await import("html-to-image");
+      const html2pdfModule = await import("html2pdf.js");
+      const html2pdf = html2pdfModule.default || html2pdfModule;
       
       const element = pdfRef.current;
       if (!element) return;
-
-      const targetWidth = 800; // Ancho fijo garantizado
-
-      // Clonar el elemento y ponerlo en el body para evitar recortes de pantalla en celulares (Safari/iOS bug)
-      const clone = element.cloneNode(true) as HTMLElement;
-      clone.style.position = 'fixed';
-      clone.style.top = '0';
-      clone.style.left = '0';
-      clone.style.width = `${targetWidth}px`;
-      clone.style.maxWidth = `${targetWidth}px`;
-      clone.style.zIndex = '-9999';
-      clone.style.backgroundColor = '#ffffff';
       
-      const trashButtons = clone.querySelectorAll('.trash-btn');
+      // Ocultar botones de basura temporalmente
+      const trashButtons = element.querySelectorAll('.trash-btn');
       trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'none');
 
-      document.body.appendChild(clone);
+      // Configuración de html2pdf
+      const opt: any = {
+        margin: [0.2, 0.2, 0.2, 0.2], // Márgenes pequeños para que no se corte
+        filename: `Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true,
+          windowWidth: 900, // Engaña al celular haciéndole creer que es una pantalla de computadora (evita recortes)
+          width: 900
+        },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
       
-      const height = clone.scrollHeight;
+      // Generar el PDF
+      await html2pdf().set(opt).from(element).save();
 
-      // Generar imagen desde el clon
-      const dataUrl = await htmlToImage.toJpeg(clone, { 
-        quality: 0.98,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-        width: targetWidth,
-        height: height,
-        style: {
-          transform: 'none',
-          margin: '0',
-          padding: '40px'
-        }
-      });
-
-      // Eliminar el clon
-      document.body.removeChild(clone);
-
-      // Crear PDF con proporciones correctas
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: [targetWidth, height]
-      });
-      
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, targetWidth, height);
-      pdf.save(`Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`);
-
+      // Restaurar botones
+      trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
     } catch (error: any) {
       console.error("PDF generation failed:", error);
       alert("Hubo un error al generar el PDF: " + (error?.message || "Error desconocido."));
+      
+      const element = pdfRef.current;
+      if (element) {
+        const trashButtons = element.querySelectorAll('.trash-btn');
+        trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
+      }
     }
   };
 
