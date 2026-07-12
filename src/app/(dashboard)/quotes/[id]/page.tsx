@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Download, CheckCircle, FileText, User, Phone, Calendar, Save, ArrowLeft, Loader2, Cake } from "lucide-react";
+import { Plus, Trash2, Download, CheckCircle, FileText, User, Phone, Calendar, Save, ArrowLeft, Loader2, Cake, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 
@@ -35,6 +35,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   
   const [newItemDesc, setNewItemDesc] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
+  const [newItemComments, setNewItemComments] = useState("");
   
   // Cake Builder Modal State
   const [showCakeModal, setShowCakeModal] = useState(false);
@@ -43,6 +44,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   const [cakePan, setCakePan] = useState("Vainilla");
   const [cakeRelleno, setCakeRelleno] = useState("Chocolate");
   const [cakeBetun, setCakeBetun] = useState("Chantilly");
+  const [cakeComments, setCakeComments] = useState("");
 
   // Registration Modal State
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -93,16 +95,23 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
 
   const addItem = () => {
     if (!newItemDesc || !newItemPrice) return;
+    
+    let finalDesc = newItemDesc;
+    if (newItemComments.trim()) {
+      finalDesc += `\n• Notas: ${newItemComments.trim()}`;
+    }
+
     setItems([
       ...items,
       {
         local_id: Math.random().toString(36).substr(2, 9),
-        description: newItemDesc,
+        description: finalDesc,
         price: parseFloat(newItemPrice)
       }
     ]);
     setNewItemDesc("");
     setNewItemPrice("");
+    setNewItemComments("");
   };
 
   const addCakeItem = () => {
@@ -111,8 +120,10 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
       return;
     }
     
-    // Format the description with the cake details
-    const formattedDesc = `${cakeDesc}\n• Pan: ${cakePan}\n• Relleno: ${cakeRelleno}\n• Betún: ${cakeBetun}`;
+    let formattedDesc = `${cakeDesc}\n• Pan: ${cakePan}\n• Relleno: ${cakeRelleno}\n• Betún: ${cakeBetun}`;
+    if (cakeComments.trim()) {
+      formattedDesc += `\n• Notas extra: ${cakeComments.trim()}`;
+    }
     
     setItems([
       ...items,
@@ -129,6 +140,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
     setCakePan("Vainilla");
     setCakeRelleno("Chocolate");
     setCakeBetun("Chantilly");
+    setCakeComments("");
   };
 
   const removeItem = (local_id: string) => {
@@ -360,18 +372,17 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
             </Button>
           </div>
           
-          {/* Default Free-text input */}
-          <div className="flex flex-col md:flex-row gap-3 pt-2">
-            <input 
-              type="text"
-              value={newItemDesc}
-              onChange={e => setNewItemDesc(e.target.value)}
-              placeholder="Concepto libre (ej. Letrero extra de Feliz Cumpleaños)"
-              className="flex-1 px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
-              onKeyDown={(e) => e.key === 'Enter' && addItem()}
-            />
-            <div className="flex gap-3">
-              <div className="relative w-full md:w-32">
+          <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col md:flex-row gap-3">
+              <input 
+                type="text"
+                value={newItemDesc}
+                onChange={e => setNewItemDesc(e.target.value)}
+                placeholder="Concepto (ej. Letrero extra)"
+                className="flex-[2] px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                onKeyDown={(e) => e.key === 'Enter' && addItem()}
+              />
+              <div className="relative flex-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <input 
                   type="number"
@@ -382,8 +393,23 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                   onKeyDown={(e) => e.key === 'Enter' && addItem()}
                 />
               </div>
-              <Button onClick={addItem} className="bg-primary hover:bg-primary/90 text-white shrink-0 rounded-xl h-[42px]">
-                <Plus className="w-5 h-5" />
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="relative flex-1">
+                <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input 
+                  type="text"
+                  value={newItemComments}
+                  onChange={e => setNewItemComments(e.target.value)}
+                  placeholder="Comentarios o peticiones especiales (Opcional)"
+                  className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground text-sm"
+                  onKeyDown={(e) => e.key === 'Enter' && addItem()}
+                />
+              </div>
+              <Button onClick={addItem} className="bg-primary hover:bg-primary/90 text-white md:w-32 rounded-xl h-[42px] gap-2">
+                <Plus className="w-4 h-4" />
+                Agregar
               </Button>
             </div>
           </div>
@@ -545,6 +571,19 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-bold mb-1 text-foreground">Comentarios o Peticiones (Opcional)</label>
+                <div className="relative w-full">
+                  <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <textarea 
+                    value={cakeComments}
+                    onChange={e => setCakeComments(e.target.value)}
+                    placeholder="Ej. Sin nuez, letrero de 'Feliz Día', decoración rosa..."
+                    className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground min-h-[80px] resize-none"
+                  />
+                </div>
+              </div>
+
               <div className="pt-2">
                 <label className="block text-sm font-bold mb-1 text-foreground">Precio Acordado</label>
                 <div className="relative w-full">
@@ -565,7 +604,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                 Cancelar
               </Button>
               <Button onClick={addCakeItem} className="bg-primary hover:bg-primary/90 text-white px-6">
-                Agregar Pastel a Cotización
+                Agregar Pastel
               </Button>
             </div>
           </div>
