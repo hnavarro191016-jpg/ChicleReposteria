@@ -251,7 +251,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
       const trashButtons = element.querySelectorAll('.trash-btn');
       trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'none');
 
-      const opt = {
+      const opt: any = {
         margin: 0.5,
         filename: `Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
