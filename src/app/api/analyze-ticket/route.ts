@@ -48,10 +48,33 @@ Si no puedes detectar la información, devuelve "Desconocido" y 0 respectivament
       result = await model.generateContent([prompt, ...imageParts]);
     } catch (fallbackError: any) {
       if (fallbackError.message?.includes('404')) {
-        console.log("gemini-1.5-flash not found, falling back to gemini-1.5-pro");
-        modelName = "gemini-1.5-pro";
-        model = genAI.getGenerativeModel({ model: modelName });
-        result = await model.generateContent([prompt, ...imageParts]);
+        console.log("Model not found. Discovering available models...");
+        // Auto-discover available models
+        const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
+        if (modelsRes.ok) {
+          const modelsData = await modelsRes.json();
+          // Find the first model that supports vision/generateContent
+          const availableModels = modelsData.models || [];
+          const visionModel = availableModels.find((m: any) => 
+            m.supportedGenerationMethods.includes('generateContent') && 
+            (m.name.includes('flash') || m.name.includes('pro')) &&
+            !m.name.includes('vision') // older vision model might be broken
+          );
+          
+          if (visionModel) {
+            modelName = visionModel.name.replace('models/', '');
+            console.log("Auto-discovered model:", modelName);
+            model = genAI.getGenerativeModel({ model: modelName });
+            result = await model.generateContent([prompt, ...imageParts]);
+          } else {
+            // Fallback to a hardcoded newer model if discovery fails finding a good one
+            modelName = "gemini-2.0-flash";
+            model = genAI.getGenerativeModel({ model: modelName });
+            result = await model.generateContent([prompt, ...imageParts]);
+          }
+        } else {
+          throw fallbackError;
+        }
       } else {
         throw fallbackError;
       }
