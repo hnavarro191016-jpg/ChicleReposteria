@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Receipt, Calendar, Loader2, Trash2, X } from "lucide-react";
+import { Plus, Receipt, Calendar, Loader2, Trash2, X, Camera, Sparkles, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 
@@ -12,6 +12,8 @@ export default function ExpensesPage() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   
   const [formData, setFormData] = useState({
     description: "",
@@ -36,18 +38,70 @@ export default function ExpensesPage() {
     setLoading(false);
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      setIsAnalyzing(true);
+      
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = async () => {
+        const base64data = (reader.result as string).split(",")[1];
+        try {
+          const response = await fetch('/api/analyze-ticket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ base64Image: base64data, mimeType: file.type })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setFormData(prev => ({
+              ...prev,
+              description: data.description && data.description !== "Desconocido" ? data.description : prev.description,
+              amount: data.amount > 0 ? data.amount.toString() : prev.amount
+            }));
+          } else {
+            console.error("Error analizando:", await response.text());
+            alert("No pudimos leer automáticamente. Revisa manualmente.");
+          }
+        } catch(e) {
+          console.error(e);
+        } finally {
+          setIsAnalyzing(false);
+        }
+      };
+    }
+  };
+
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.description || !formData.amount || !formData.date) return;
 
     setIsSubmitting(true);
     
+    let finalImageUrl = null;
+    if (imageFile) {
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('tickets')
+        .upload(fileName, imageFile);
+        
+      if (uploadData && !uploadError) {
+        const { data: publicUrlData } = supabase.storage.from('tickets').getPublicUrl(fileName);
+        finalImageUrl = publicUrlData.publicUrl;
+      }
+    }
+
     const { error } = await supabase
       .from("expenses")
       .insert({
         description: formData.description,
         amount: parseFloat(formData.amount),
         date: new Date(formData.date).toISOString(),
+        image_url: finalImageUrl
       });
 
     setIsSubmitting(false);
@@ -56,6 +110,7 @@ export default function ExpensesPage() {
       alert("Error guardando gasto: " + error.message);
     } else {
       setIsModalOpen(false);
+      setImageFile(null);
       setFormData({ ...formData, description: "", amount: "" });
       fetchExpenses();
     }
@@ -140,7 +195,18 @@ export default function ExpensesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-semibold text-foreground">{expense.description}</span>
+                      <div className="flex items-center gap-3">
+                        {expense.image_url ? (
+                          <a href={expense.image_url} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-xl bg-secondary/50 flex items-center justify-center shrink-0 border border-border/50 hover:bg-secondary transition-colors" title="Ver foto del ticket">
+                            <ImageIcon className="w-4 h-4 text-primary" />
+                          </a>
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-secondary/20 flex items-center justify-center shrink-0 border border-border/10" title="Sin foto">
+                            <Receipt className="w-4 h-4 text-muted-foreground/50" />
+                          </div>
+                        )}
+                        <span className="font-semibold text-foreground">{expense.description}</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <span className="font-bold text-orange-600 text-lg">${parseFloat(expense.amount).toFixed(2)}</span>
@@ -181,6 +247,39 @@ export default function ExpensesPage() {
             </div>
 
             <form onSubmit={handleCreateExpense} className="space-y-5">
+              
+              {/* Image Scanner Input */}
+              <div className="relative group cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed border-border hover:border-primary/50 transition-colors bg-secondary/20 p-6 flex flex-col items-center justify-center text-center">
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileChange}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
+                
+                {isAnalyzing ? (
+                  <div className="flex flex-col items-center text-primary animate-pulse py-4">
+                    <Sparkles className="w-8 h-8 mb-2 animate-bounce" />
+                    <p className="font-bold text-sm">IA Leyendo Ticket...</p>
+                  </div>
+                ) : imageFile ? (
+                  <div className="flex flex-col items-center text-primary py-2">
+                    <ImageIcon className="w-8 h-8 mb-2 text-green-500" />
+                    <p className="font-bold text-sm text-green-600">¡Foto lista para procesar!</p>
+                    <p className="text-xs text-muted-foreground mt-1">Toca para cambiar</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center text-muted-foreground py-2">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <p className="font-semibold text-sm text-foreground">Tomar Foto del Ticket</p>
+                    <p className="text-xs text-muted-foreground mt-1">Extraeremos el total mágicamente 🪄</p>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold mb-2 text-foreground ml-1">Fecha de Compra *</label>
                 <input 
