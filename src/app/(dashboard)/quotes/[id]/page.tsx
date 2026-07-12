@@ -240,23 +240,39 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
 
   const generatePDF = async () => {
     if (typeof window === "undefined") return;
-    const html2pdf = (await import("html2pdf.js" as any)).default;
-    const element = pdfRef.current;
-    
-    const trashButtons = element?.querySelectorAll('.trash-btn');
-    trashButtons?.forEach(btn => (btn as HTMLElement).style.display = 'none');
+    try {
+      // Dynamic import that handles both ESM and CommonJS
+      const html2pdfModule = await import("html2pdf.js");
+      const html2pdf = html2pdfModule.default || html2pdfModule;
+      
+      const element = pdfRef.current;
+      if (!element) return;
+      
+      const trashButtons = element.querySelectorAll('.trash-btn');
+      trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'none');
 
-    const opt = {
-      margin: 0.5,
-      filename: `Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };
-    
-    await html2pdf().set(opt).from(element).save();
+      const opt = {
+        margin: 0.5,
+        filename: `Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      
+      await html2pdf().set(opt).from(element).save();
 
-    trashButtons?.forEach(btn => (btn as HTMLElement).style.display = 'flex');
+      trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
+    } catch (error: any) {
+      console.error("PDF generation failed:", error);
+      alert("Hubo un error al generar el PDF: " + (error?.message || "Error desconocido."));
+      
+      // Restore trash buttons if it failed mid-way
+      const element = pdfRef.current;
+      if (element) {
+        const trashButtons = element.querySelectorAll('.trash-btn');
+        trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
+      }
+    }
   };
 
   if (loading) {
