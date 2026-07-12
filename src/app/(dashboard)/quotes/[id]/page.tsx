@@ -250,19 +250,23 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
       const trashButtons = element.querySelectorAll('.trash-btn');
       trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'none');
 
-      const width = element.scrollWidth;
       const height = element.scrollHeight;
+      const targetWidth = 800; // Ancho fijo para garantizar que todo quepa sin importar el celular
 
-      // Generar imagen en alta resolución capturando todo el contenido (incluso si hay scroll)
+      // Generar imagen forzando al clon a medir 800px
       const dataUrl = await htmlToImage.toJpeg(element, { 
         quality: 0.98,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
-        width: width,
+        width: targetWidth,
         height: height,
         style: {
+          width: '800px',
+          minWidth: '800px',
+          maxWidth: '800px',
           transform: 'none',
-          margin: '0'
+          margin: '0',
+          padding: '40px'
         }
       });
 
@@ -270,10 +274,10 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
-        format: [width, height]
+        format: [targetWidth, height]
       });
       
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, width, height);
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, targetWidth, height);
       pdf.save(`Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`);
 
       trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
