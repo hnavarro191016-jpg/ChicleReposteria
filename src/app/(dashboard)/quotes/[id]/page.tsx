@@ -239,46 +239,127 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   };
 
   const generatePDF = async () => {
-    if (typeof window === "undefined") return;
     try {
-      const html2pdfModule = await import("html2pdf.js");
-      const html2pdf = html2pdfModule.default || html2pdfModule;
-      
-      const element = pdfRef.current;
-      if (!element) return;
-      
-      // Ocultar botones de basura temporalmente
-      const trashButtons = element.querySelectorAll('.trash-btn');
-      trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'none');
+      const { jsPDF } = await import("jspdf");
+      const autoTable = (await import("jspdf-autotable")).default;
 
-      // Configuración de html2pdf
-      const opt: any = {
-        margin: [0.2, 0.2, 0.2, 0.2], // Márgenes pequeños para que no se corte
-        filename: `Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true,
-          windowWidth: 900, // Engaña al celular haciéndole creer que es una pantalla de computadora (evita recortes)
-          width: 900
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Colors
+      const primaryColor = [236, 72, 153];
+      const textColor = [55, 65, 81];
+      const lightGray = [243, 244, 246];
+
+      // Header
+      doc.setFontSize(24);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.setFont("helvetica", "bold");
+      doc.text("CHICLE", 14, 20);
+      
+      doc.setFontSize(14);
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.text("REPOSTERÍA", 14, 28);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(107, 114, 128);
+      doc.setFont("helvetica", "normal");
+      doc.text("Cotización de Servicios", 14, 34);
+
+      // Client Info (Right)
+      const rightAlign = 196;
+      doc.setFontSize(10);
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      
+      const today = new Date().toLocaleDateString();
+      doc.text(`Fecha: ${today}`, rightAlign, 20, { align: "right" });
+      doc.text(`Cliente: ${clientName || "________________"}`, rightAlign, 26, { align: "right" });
+      if (clientPhone) {
+        doc.text(`Tel: ${clientPhone}`, rightAlign, 32, { align: "right" });
+      }
+      if (status === "approved") {
+        doc.setTextColor(22, 163, 74);
+        doc.setFont("helvetica", "bold");
+        doc.text("ESTADO: APROBADA", rightAlign, 38, { align: "right" });
+      }
+
+      // Divider
+      doc.setDrawColor(lightGray[0], lightGray[1], lightGray[2]);
+      doc.setLineWidth(0.5);
+      doc.line(14, 45, 196, 45);
+
+      // Table Data
+      const tableData = items.map(item => [
+        item.description, 
+        `$${item.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+      ]);
+
+      if (tableData.length === 0) {
+        tableData.push(["No has agregado ningún concepto a la cotización.", ""]);
+      }
+
+      autoTable(doc, {
+        startY: 55,
+        head: [['Concepto', 'Importe']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [249, 250, 251],
+          textColor: [31, 41, 55],
+          fontStyle: 'bold',
         },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      };
-      
-      // Generar el PDF
-      await html2pdf().set(opt).from(element).save();
+        styles: {
+          font: "helvetica",
+          fontSize: 11,
+          textColor: [55, 65, 81],
+          cellPadding: 6,
+        },
+        columnStyles: {
+          0: { cellWidth: 130 },
+          1: { cellWidth: 50, halign: 'right', fontStyle: 'bold' }
+        },
+        alternateRowStyles: {
+          fillColor: [255, 255, 255]
+        }
+      });
 
-      // Restaurar botones
-      trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
+      // Totals
+      const finalY = (doc as any).lastAutoTable.finalY + 15;
+      
+      doc.setFontSize(11);
+      doc.setTextColor(107, 114, 128);
+      doc.setFont("helvetica", "normal");
+      doc.text("Subtotal", 130, finalY);
+      
+      doc.setTextColor(31, 41, 55);
+      doc.setFont("helvetica", "bold");
+      doc.text(`$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, rightAlign, finalY, { align: "right" });
+      
+      doc.setDrawColor(229, 231, 235);
+      doc.setLineWidth(0.5);
+      doc.line(130, finalY + 5, 196, finalY + 5);
+
+      doc.setFontSize(16);
+      doc.setTextColor(17, 24, 39);
+      doc.text("Total", 130, finalY + 15);
+      
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text(`$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, rightAlign, finalY + 15, { align: "right" });
+
+      // Footer
+      doc.setFontSize(10);
+      doc.setTextColor(156, 163, 175);
+      doc.setFont("helvetica", "italic");
+      doc.text("Gracias por elegir Chicle Repostería.", 105, 280, { align: "center" });
+
+      doc.save(`Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`);
+
     } catch (error: any) {
       console.error("PDF generation failed:", error);
-      alert("Hubo un error al generar el PDF: " + (error?.message || "Error desconocido."));
-      
-      const element = pdfRef.current;
-      if (element) {
-        const trashButtons = element.querySelectorAll('.trash-btn');
-        trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
-      }
+      alert("Hubo un error al generar el PDF. Revisa tu conexión a internet.");
     }
   };
 
