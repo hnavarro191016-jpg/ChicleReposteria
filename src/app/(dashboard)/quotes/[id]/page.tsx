@@ -304,8 +304,11 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         const orderItems = items.map(item => ({
           order_id: newOrder.id,
           custom_name: item.description,
+          quantity: 1,
+          unit_price: item.price
         }));
-        await supabase.from("order_items").insert(orderItems);
+        const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
+        if (itemsError) console.error("Error inserting order items:", itemsError);
       }
       
       setCreatingOrder(false);

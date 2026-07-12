@@ -42,6 +42,7 @@ export default function OrdersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalStep, setModalStep] = useState<number>(1);
   const [orderIngredients, setOrderIngredients] = useState<any[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   
   
   const [orderType, setOrderType] = useState<"catalog" | "custom">("catalog");
@@ -380,9 +381,14 @@ export default function OrdersPage() {
                   column.items.map(order => {
                     const item = order.order_items?.[0];
                     const productName = item?.catalog_products?.name || item?.custom_name || 'Pedido sin detalle';
+                    const firstLineName = productName.split('\n')[0]; // To avoid huge cards if there are many details
 
                     return (
-                    <div key={order.id} className="bg-card p-5 rounded-2xl border border-border/50 shadow-sm hover:shadow-md transition-shadow cursor-grab">
+                    <div 
+                      key={order.id} 
+                      onClick={() => setSelectedOrder(order)}
+                      className="bg-card p-5 rounded-2xl border border-border/50 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                    >
                       <div className="flex items-center justify-between mb-3">
                         <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border flex items-center gap-1 ${StatusColor({status: order.status})}`}>
                           <StatusIcon status={order.status} />
@@ -395,9 +401,9 @@ export default function OrdersPage() {
                       
                       <h4 className="font-bold text-foreground text-lg mb-1">{order.clients?.name || 'Cliente Eliminado'}</h4>
                       
-                      <div className="flex items-center gap-1 text-sm font-medium text-primary mb-2">
-                        <Tag className="w-3.5 h-3.5" />
-                        {productName}
+                      <div className="flex items-center gap-1 text-sm font-medium text-primary mb-2 line-clamp-1">
+                        <Tag className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{firstLineName}</span>
                       </div>
 
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4 font-medium">
@@ -406,7 +412,7 @@ export default function OrdersPage() {
                       </div>
 
                       {/* Botones de acción rápida para avanzar el estado */}
-                      <div className="pt-3 border-t border-border/50 flex justify-between items-center">
+                      <div className="pt-3 border-t border-border/50 flex justify-between items-center" onClick={(e) => e.stopPropagation()}>
                         <span className="text-xs text-muted-foreground">Anticipo: ${(order.advance_payment || 0).toFixed(2)}</span>
                         
                         {order.status === 'Pendiente' && (
@@ -666,6 +672,67 @@ export default function OrdersPage() {
               </div>
             )}
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detalles del Pedido */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-lg rounded-[2.5rem] p-8 shadow-xl border border-border/50 relative max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => setSelectedOrder(null)}
+              className="absolute top-6 right-6 p-2 bg-secondary/50 rounded-full hover:bg-secondary transition-colors"
+            >
+              <X className="w-5 h-5 text-muted-foreground" />
+            </button>
+            
+            <div className="mb-6 pr-8">
+              <span className={`inline-flex mb-4 text-xs font-bold uppercase tracking-wider px-2 py-1 rounded-md border items-center gap-1 ${StatusColor({status: selectedOrder.status})}`}>
+                <StatusIcon status={selectedOrder.status} />
+                {selectedOrder.status}
+              </span>
+              <h2 className="text-2xl font-bold text-foreground">{selectedOrder.clients?.name || 'Cliente Eliminado'}</h2>
+              <p className="text-muted-foreground mt-1 flex items-center gap-2 font-medium">
+                <Calendar className="w-4 h-4" />
+                Entrega: {new Date(selectedOrder.delivery_date).toLocaleString()}
+              </p>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="bg-secondary/20 rounded-2xl p-4 border border-border/50">
+                <h4 className="font-bold text-sm text-muted-foreground mb-3 uppercase tracking-wider">Conceptos del Pedido</h4>
+                <ul className="space-y-4">
+                  {selectedOrder.order_items?.map((item: any, idx: number) => (
+                    <li key={idx} className="flex gap-3 items-start">
+                      <Tag className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <span className="text-sm font-medium whitespace-pre-wrap leading-relaxed">{item.catalog_products?.name || item.custom_name}</span>
+                    </li>
+                  ))}
+                  {(!selectedOrder.order_items || selectedOrder.order_items.length === 0) && (
+                    <span className="text-sm text-muted-foreground">Sin conceptos detallados</span>
+                  )}
+                </ul>
+              </div>
+
+              {selectedOrder.notes && (
+                <div>
+                  <h4 className="font-bold text-sm text-muted-foreground mb-2 uppercase tracking-wider">Notas Adicionales</h4>
+                  <p className="text-sm bg-secondary/30 p-4 rounded-2xl border border-border/50 whitespace-pre-wrap leading-relaxed">{selectedOrder.notes}</p>
+                </div>
+              )}
+
+              <div className="bg-primary/5 rounded-2xl p-5 border border-primary/20 flex justify-between items-center mt-8">
+                <div>
+                  <p className="text-xs font-bold text-muted-foreground uppercase mb-1">Anticipo</p>
+                  <p className="text-xl font-bold">${(selectedOrder.advance_payment || 0).toFixed(2)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-primary uppercase mb-1">Costo Total</p>
+                  <p className="text-3xl font-bold text-primary">${(selectedOrder.total_amount || 0).toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
