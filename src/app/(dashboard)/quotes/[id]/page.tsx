@@ -250,21 +250,30 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
       const trashButtons = element.querySelectorAll('.trash-btn');
       trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'none');
 
-      // Generar imagen en alta resolución
+      const width = element.scrollWidth;
+      const height = element.scrollHeight;
+
+      // Generar imagen en alta resolución capturando todo el contenido (incluso si hay scroll)
       const dataUrl = await htmlToImage.toJpeg(element, { 
         quality: 0.98,
         pixelRatio: 2,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        width: width,
+        height: height,
+        style: {
+          transform: 'none',
+          margin: '0'
+        }
       });
 
       // Crear PDF con proporciones correctas
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
-        format: [element.offsetWidth, element.offsetHeight]
+        format: [width, height]
       });
       
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, element.offsetWidth, element.offsetHeight);
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, width, height);
       pdf.save(`Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`);
 
       trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
