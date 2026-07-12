@@ -3,9 +3,24 @@
 import { useSettings } from "@/context/SettingsContext";
 import { Loader2, ShieldAlert, LogOut } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { useEffect } from "react";
 
 export function RoleGuard({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useSettings();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (!sessionStorage.getItem("erp_active_session")) {
+        sessionStorage.setItem("erp_active_session", "true");
+        const supabase = createClient();
+        supabase.auth.signOut().then(() => {
+          if (window.location.pathname !== "/login") {
+            window.location.href = "/login";
+          }
+        });
+      }
+    }
+  }, []);
 
   if (loading) {
     return (
