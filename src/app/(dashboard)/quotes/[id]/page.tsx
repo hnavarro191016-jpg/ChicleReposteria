@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Download, CheckCircle, FileText, User, Phone, Calendar, Save, ArrowLeft, Loader2, Cake, MessageSquare } from "lucide-react";
+import { Plus, Trash2, Download, CheckCircle, FileText, User, Phone, Calendar, Save, ArrowLeft, Loader2, Cake, MessageSquare, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 
@@ -48,6 +48,12 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
 
   // Registration Modal State
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  
+  // Convert to Order Modal State
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderDeliveryDate, setOrderDeliveryDate] = useState("");
+  const [orderAdvancePayment, setOrderAdvancePayment] = useState("");
+  const [creatingOrder, setCreatingOrder] = useState(false);
   
   const pdfRef = useRef<HTMLDivElement>(null);
 
@@ -238,6 +244,83 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
+  const handleCreateOrder = async () => {
+    if (!orderDeliveryDate) {
+      alert("La fecha de entrega es obligatoria para crear un pedido.");
+      return;
+    }
+    
+    setCreatingOrder(true);
+    
+    try {
+      // 1. Check if client exists
+      let currentClientId = null;
+      const { data: existingClients } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("name", clientName)
+        .limit(1);
+        
+      if (existingClients && existingClients.length > 0) {
+        currentClientId = existingClients[0].id;
+      } else {
+        // 2. Create client
+        const { data: newClient, error: clientError } = await supabase
+          .from("clients")
+          .insert({
+            name: clientName,
+            phone: clientPhone,
+            whatsapp: clientWhatsapp,
+            birthdate: clientBirthdate || null,
+          })
+          .select("id")
+          .single();
+          
+        if (clientError) throw new Error("Error creando cliente: " + clientError.message);
+        currentClientId = newClient.id;
+      }
+      
+      // 3. Prepare Notes
+      const notes = "Pedido generado automáticamente desde Cotización.\n\nConceptos detallados:\n" + items.map(i => `- ${i.description}`).join("\n\n");
+      
+      // 4. Create Order
+      const { data: newOrder, error: orderError } = await supabase
+        .from("orders")
+        .insert({
+          client_id: currentClientId,
+          order_type: "custom",
+          delivery_date: orderDeliveryDate,
+          total_amount: total,
+          advance_payment: parseFloat(orderAdvancePayment) || 0,
+          notes: notes,
+          status: "Pendiente"
+        })
+        .select("id")
+        .single();
+        
+      if (orderError) throw new Error("Error creando pedido: " + orderError.message);
+      
+      // 5. Create Order Items to show in Kanban board correctly
+      if (items.length > 0) {
+        const orderItems = items.map(item => ({
+          order_id: newOrder.id,
+          custom_name: item.description,
+        }));
+        await supabase.from("order_items").insert(orderItems);
+      }
+      
+      setCreatingOrder(false);
+      setShowOrderModal(false);
+      alert("¡Pedido creado exitosamente!");
+      router.push("/orders");
+      
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message);
+      setCreatingOrder(false);
+    }
+  };
+
   const generatePDF = async () => {
     try {
       const { jsPDF } = await import("jspdf");
@@ -403,6 +486,12 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
               <CheckCircle className="w-4 h-4" />
               {status === "approved" ? "Aprobada" : "Marcar Aprobada"}
             </Button>
+            {status === "approved" && (
+              <Button onClick={() => setShowOrderModal(true)} className="flex-1 md:flex-none gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20">
+                <Package className="w-4 h-4" />
+                Convertir a Pedido
+              </Button>
+            )}
             <Button onClick={generatePDF} className="flex-1 md:flex-none gap-2 bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/20">
               <Download className="w-4 h-4" />
               Descargar PDF
@@ -733,6 +822,56 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
               </Button>
               <Button onClick={registerClientToCRM} className="bg-primary hover:bg-primary/90 text-white">
                 Sí, Registrar Cliente
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Crear Pedido desde Cotización */}
+      {showOrderModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md rounded-2xl p-6 shadow-xl border border-border">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Package className="w-5 h-5 text-blue-500" />
+                Convertir a Pedido
+              </h3>
+            </div>
+            
+            <p className="text-sm text-muted-foreground mb-6">
+              Los conceptos de la cotización y los datos del cliente se copiarán automáticamente al nuevo pedido. Solo necesitamos:
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold mb-1 text-foreground">Fecha y Hora de Entrega *</label>
+                <input 
+                  type="datetime-local" 
+                  value={orderDeliveryDate}
+                  onChange={e => setOrderDeliveryDate(e.target.value)}
+                  className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-foreground"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-1 text-foreground">Anticipo Recibido ($)</label>
+                <input 
+                  type="number" 
+                  value={orderAdvancePayment}
+                  onChange={e => setOrderAdvancePayment(e.target.value)}
+                  placeholder="Ej. 250"
+                  className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-foreground"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-border">
+              <Button variant="ghost" onClick={() => setShowOrderModal(false)} disabled={creatingOrder}>
+                Cancelar
+              </Button>
+              <Button onClick={handleCreateOrder} disabled={creatingOrder} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+                {creatingOrder ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Generar Pedido
               </Button>
             </div>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, UserCircle, Phone, Calendar, X, Loader2 } from "lucide-react";
+import { Plus, Search, UserCircle, Phone, Calendar, X, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 
@@ -62,6 +62,22 @@ export default function ClientsPage() {
     }
   };
 
+  const handleDeleteClient = async (id: string, name: string) => {
+    if (!confirm(`¿Estás seguro que deseas eliminar al cliente "${name}"?`)) return;
+
+    const { error } = await supabase.from("clients").delete().eq("id", id);
+    if (error) {
+      // 23503 is the PostgreSQL code for foreign key violation
+      if (error.code === '23503') {
+        alert(`No puedes eliminar a ${name} porque tiene pedidos o cotizaciones ligadas a su nombre. Por seguridad financiera, esto está bloqueado. (Tip: Puedes editar su nombre a "INACTIVO - ${name}").`);
+      } else {
+        alert("Error al eliminar cliente: " + error.message);
+      }
+    } else {
+      fetchClients();
+    }
+  };
+
   const filteredClients = clients.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     (c.phone && c.phone.includes(searchTerm))
@@ -110,12 +126,21 @@ export default function ClientsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredClients.map(client => (
-            <div key={client.id} className="bg-card border border-border/50 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+            <div key={client.id} className="bg-card border border-border/50 rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow group relative">
+              
+              <button 
+                onClick={() => handleDeleteClient(client.id, client.name)}
+                className="absolute top-4 right-4 p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                title="Eliminar Cliente"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
                   <UserCircle className="w-6 h-6 text-primary" />
                 </div>
-                <div className="text-right">
+                <div className="text-right mr-10">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Compras</span>
                   <p className="text-lg font-bold text-foreground">${(client.total_spent || 0).toFixed(2)}</p>
                 </div>

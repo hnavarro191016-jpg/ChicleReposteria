@@ -13,7 +13,8 @@ import {
   TrendingUp, 
   Users,
   Loader2,
-  Filter
+  Filter,
+  Gift
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const [dateFilter, setDateFilter] = useState("mes");
   const [upcomingOrders, setUpcomingOrders] = useState<any[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<any[]>([]);
+  const [upcomingBirthdays, setUpcomingBirthdays] = useState<any[]>([]);
   
   const supabase = createClient();
 
@@ -71,6 +73,39 @@ export default function Dashboard() {
     if (inventory) {
       const alerts = inventory.filter(i => i.stock <= i.min_stock);
       setInventoryAlerts(alerts);
+    }
+
+    // Fetch Clients for birthdays
+    const { data: clientsData } = await supabase.from('clients').select('id, name, whatsapp, birthdate');
+    if (clientsData) {
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      
+      const birthdays = clientsData
+        .filter(c => c.birthdate)
+        .map(c => {
+          // Parse as local noon to avoid timezone shift
+          const bday = new Date(c.birthdate + "T12:00:00");
+          let nextBirthdayDate = new Date(currentYear, bday.getMonth(), bday.getDate());
+          
+          // If birthday already passed this year, set to next year
+          if (nextBirthdayDate.getTime() < new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) {
+            nextBirthdayDate.setFullYear(currentYear + 1);
+          }
+          
+          const diffTime = nextBirthdayDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          return {
+            ...c,
+            daysUntil: diffDays,
+            formattedDate: nextBirthdayDate.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' })
+          };
+        })
+        .filter(c => c.daysUntil >= 0 && c.daysUntil <= 30) // Within 30 days
+        .sort((a, b) => a.daysUntil - b.daysUntil);
+        
+      setUpcomingBirthdays(birthdays);
     }
 
     setLoading(false);
@@ -316,6 +351,49 @@ export default function Dashboard() {
                   Ver Inventario Completo
                 </Button>
               </Link>
+            </div>
+
+            {/* Upcoming Birthdays Widget */}
+            <div className="bg-gradient-to-br from-pink-500/10 to-purple-500/10 rounded-3xl p-6 border border-pink-500/10 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Gift className="w-24 h-24 text-pink-500" />
+              </div>
+              <h3 className="text-xl font-semibold mb-4 text-foreground relative z-10 flex items-center gap-2">
+                <Gift className="w-5 h-5 text-pink-500" />
+                Próximos Cumpleaños
+              </h3>
+              <ul className="space-y-3 relative z-10 max-h-[300px] overflow-y-auto">
+                {upcomingBirthdays.length === 0 ? (
+                  <p className="text-sm text-muted-foreground bg-white/60 p-4 rounded-xl text-center">
+                    No hay cumpleaños próximos en los siguientes 30 días.
+                  </p>
+                ) : (
+                  upcomingBirthdays.map((client, idx) => (
+                    <li key={idx} className="flex items-center justify-between bg-white/60 p-3 rounded-xl backdrop-blur-sm border border-pink-500/20">
+                      <div>
+                        <span className="font-bold text-sm block">{client.name}</span>
+                        <span className="text-xs text-muted-foreground">{client.formattedDate}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-pink-600 font-bold text-xs bg-pink-100 px-2 py-1 rounded-lg">
+                          {client.daysUntil === 0 ? '¡Hoy!' : `Faltan ${client.daysUntil} d`}
+                        </span>
+                        {client.whatsapp && (
+                          <a 
+                            href={`https://wa.me/${client.whatsapp.replace(/\D/g,'')}?text=¡Hola ${client.name}! Vimos que se acerca tu cumpleaños y en Chicle Repostería queremos consentirte...`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-green-100 hover:bg-green-200 text-green-700 p-1.5 rounded-lg transition-colors"
+                            title="Felicitar por WhatsApp"
+                          >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564c.173.087.289.129.332.202.043.073.043.423-.101.827z"/></svg>
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                  ))
+                )}
+              </ul>
             </div>
           </motion.div>
         </div>
