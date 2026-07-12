@@ -246,34 +246,42 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
       
       const element = pdfRef.current;
       if (!element) return;
+
+      const targetWidth = 800; // Ancho fijo garantizado
+
+      // Clonar el elemento y ponerlo en el body para evitar recortes de pantalla en celulares (Safari/iOS bug)
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.style.position = 'fixed';
+      clone.style.top = '0';
+      clone.style.left = '0';
+      clone.style.width = `${targetWidth}px`;
+      clone.style.maxWidth = `${targetWidth}px`;
+      clone.style.zIndex = '-9999';
+      clone.style.backgroundColor = '#ffffff';
       
-      const trashButtons = element.querySelectorAll('.trash-btn');
+      const trashButtons = clone.querySelectorAll('.trash-btn');
       trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'none');
 
-      const height = element.scrollHeight;
-      const targetWidth = 800; // Ancho fijo para garantizar que todo quepa sin importar el celular
+      document.body.appendChild(clone);
+      
+      const height = clone.scrollHeight;
 
-      // Generar imagen forzando al clon a medir 800px
-      const dataUrl = await htmlToImage.toJpeg(element, { 
+      // Generar imagen desde el clon
+      const dataUrl = await htmlToImage.toJpeg(clone, { 
         quality: 0.98,
         pixelRatio: 2,
         backgroundColor: '#ffffff',
         width: targetWidth,
         height: height,
-        filter: (node: any) => {
-          // Filtrar el botón de basura para que no salga en el PDF
-          if (node?.classList?.contains('trash-btn')) return false;
-          return true;
-        },
         style: {
-          width: '800px',
-          minWidth: '800px',
-          maxWidth: '800px',
           transform: 'none',
           margin: '0',
           padding: '40px'
         }
       });
+
+      // Eliminar el clon
+      document.body.removeChild(clone);
 
       // Crear PDF con proporciones correctas
       const pdf = new jsPDF({
@@ -285,16 +293,9 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
       pdf.addImage(dataUrl, 'JPEG', 0, 0, targetWidth, height);
       pdf.save(`Cotizacion_${clientName.replace(/\s+/g, '_') || 'Chicle'}.pdf`);
 
-      trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
     } catch (error: any) {
       console.error("PDF generation failed:", error);
       alert("Hubo un error al generar el PDF: " + (error?.message || "Error desconocido."));
-      
-      const element = pdfRef.current;
-      if (element) {
-        const trashButtons = element.querySelectorAll('.trash-btn');
-        trashButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
-      }
     }
   };
 
