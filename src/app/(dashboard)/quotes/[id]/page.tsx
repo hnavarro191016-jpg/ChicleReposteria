@@ -434,12 +434,12 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* PDF Preview Area */}
       <div className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-border overflow-x-auto">
-        <div ref={pdfRef} className="min-w-[600px] text-black bg-white p-4">
+        <div ref={pdfRef} className="min-w-[600px] text-[#000000] bg-[#ffffff] p-4">
           {/* Header */}
-          <div className="flex justify-between items-start border-b-2 border-pink-200 pb-6 mb-8">
+          <div className="flex justify-between items-start border-b-2 border-[#fbcfe8] pb-6 mb-8">
             <div className="flex items-center gap-6">
               {/* Logo Box */}
-              <div className="w-24 h-24 bg-pink-50 rounded-2xl flex items-center justify-center overflow-hidden border-2 border-pink-100 shadow-sm">
+              <div className="w-24 h-24 bg-[#fdf2f8] rounded-2xl flex items-center justify-center overflow-hidden border-2 border-[#fce7f3] shadow-sm">
                 <img 
                   src="/logo.png" 
                   alt="Chicle Repostería" 
@@ -450,17 +450,17 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                 />
               </div>
               <div>
-                <h2 className="text-3xl font-black text-pink-500 tracking-tighter">CHICLE</h2>
-                <h3 className="text-xl font-bold text-gray-700 tracking-widest uppercase mt-1">Repostería</h3>
-                <p className="text-sm text-gray-500 mt-2 font-medium">Cotización de Servicios</p>
+                <h2 className="text-3xl font-black text-[#ec4899] tracking-tighter">CHICLE</h2>
+                <h3 className="text-xl font-bold text-[#374151] tracking-widest uppercase mt-1">Repostería</h3>
+                <p className="text-sm text-[#6b7280] mt-2 font-medium">Cotización de Servicios</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm font-bold text-gray-800">Fecha: <span className="font-normal text-gray-600">{date}</span></p>
-              <p className="text-sm font-bold text-gray-800 mt-1">Cliente: <span className="font-normal text-gray-600">{clientName || "________________"}</span></p>
-              {clientPhone && <p className="text-sm text-gray-500 mt-1">Tel: {clientPhone}</p>}
+              <p className="text-sm font-bold text-[#1f2937]">Fecha: <span className="font-normal text-[#4b5563]">{date}</span></p>
+              <p className="text-sm font-bold text-[#1f2937] mt-1">Cliente: <span className="font-normal text-[#4b5563]">{clientName || "________________"}</span></p>
+              {clientPhone && <p className="text-sm text-[#6b7280] mt-1">Tel: {clientPhone}</p>}
               {status === "approved" && (
-                <div className="mt-6 inline-block border-2 border-green-500 text-green-600 font-bold px-4 py-1.5 rounded-lg text-sm transform -rotate-12 shadow-sm bg-green-50">
+                <div className="mt-6 inline-block border-2 border-[#22c55e] text-[#16a34a] font-bold px-4 py-1.5 rounded-lg text-sm transform -rotate-12 shadow-sm bg-[#f0fdf4]">
                   ✓ APROBADA
                 </div>
               )}
@@ -471,30 +471,30 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
           <div className="min-h-[300px]">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b-2 border-gray-200">
-                  <th className="py-3 px-4 font-bold text-gray-800 w-3/4 text-lg">Concepto</th>
-                  <th className="py-3 px-4 font-bold text-gray-800 text-right text-lg">Importe</th>
+                <tr className="border-b-2 border-[#e5e7eb]">
+                  <th className="py-3 px-4 font-bold text-[#1f2937] w-3/4 text-lg">Concepto</th>
+                  <th className="py-3 px-4 font-bold text-[#1f2937] text-right text-lg">Importe</th>
                 </tr>
               </thead>
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={2} className="py-12 text-center text-gray-400 italic">No has agregado ningún concepto a la cotización.</td>
+                    <td colSpan={2} className="py-12 text-center text-[#9ca3af] italic">No has agregado ningún concepto a la cotización.</td>
                   </tr>
                 ) : (
                   items.map((item) => (
-                    <tr key={item.local_id} className="border-b border-gray-100 group hover:bg-gray-50 transition-colors">
-                      <td className="py-4 px-4 text-gray-800 flex items-start gap-3 font-medium">
+                    <tr key={item.local_id} className="border-b border-[#f3f4f6] group hover:bg-[#f9fafb] transition-colors">
+                      <td className="py-4 px-4 text-[#1f2937] flex items-start gap-3 font-medium">
                         <button 
                           onClick={() => removeItem(item.local_id)}
-                          className="trash-btn mt-1 text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                          className="trash-btn mt-1 text-[#f87171] hover:text-[#dc2626] hover:bg-[#fef2f2] p-1.5 rounded-lg transition-colors"
                           title="Eliminar"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                         <span className="whitespace-pre-wrap">{item.description}</span>
                       </td>
-                      <td className="py-4 px-4 text-gray-800 text-right font-bold text-lg align-top">
+                      <td className="py-4 px-4 text-[#1f2937] text-right font-bold text-lg align-top">
                         ${item.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
@@ -506,19 +506,19 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
 
           {/* Total */}
           <div className="flex justify-end mt-8">
-            <div className="w-1/2 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+            <div className="w-1/2 bg-[#f9fafb] p-6 rounded-2xl border border-[#f3f4f6]">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600 font-medium">Subtotal</span>
-                <span className="font-semibold text-gray-800">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                <span className="text-[#4b5563] font-medium">Subtotal</span>
+                <span className="font-semibold text-[#1f2937]">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
-              <div className="flex justify-between items-center text-2xl font-black mt-4 pt-4 border-t-2 border-gray-200">
-                <span className="text-gray-900">Total</span>
-                <span className="text-pink-600">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+              <div className="flex justify-between items-center text-2xl font-black mt-4 pt-4 border-t-2 border-[#e5e7eb]">
+                <span className="text-[#111827]">Total</span>
+                <span className="text-[#db2777]">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
           
-          <div className="mt-16 text-center text-sm font-medium text-gray-400 border-t-2 border-gray-100 pt-6">
+          <div className="mt-16 text-center text-sm font-medium text-[#9ca3af] border-t-2 border-[#f3f4f6] pt-6">
             <p>Gracias por elegir Chicle Repostería.</p>
           </div>
         </div>
