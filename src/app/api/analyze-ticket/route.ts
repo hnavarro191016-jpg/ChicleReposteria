@@ -94,6 +94,9 @@ Si no puedes detectar la información, devuelve "Desconocido" y 0 respectivament
       }
     }
 
+    if (!result) {
+      return NextResponse.json({ error: 'No se pudo generar contenido válido' }, { status: 500 });
+    }
     const responseText = result.response.text();
     
     // Limpiar posible formato markdown que regrese Gemini
