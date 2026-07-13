@@ -15,7 +15,8 @@ import {
   Loader2,
   Filter,
   Gift,
-  Receipt
+  Receipt,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [inventoryAlerts, setInventoryAlerts] = useState<any[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<any[]>([]);
   const [allExpenses, setAllExpenses] = useState<any[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
   
   const supabase = createClient();
 
@@ -72,6 +74,12 @@ export default function Dashboard() {
 
     if (orders) setAllOrders(orders);
     if (expensesData) setAllExpenses(expensesData);
+
+    // Fetch Low Stock Inventory
+    const { data: inventoryData } = await supabase.from('inventory_items').select('*');
+    if (inventoryData) {
+      setLowStockItems(inventoryData.filter((item: any) => item.quantity <= item.min_quantity));
+    }
 
     // Fetch Clients for birthdays
     const { data: clientsData } = await supabase.from('clients').select('id, name, whatsapp, birthdate');
@@ -338,54 +346,46 @@ export default function Dashboard() {
             transition={{ delay: 0.4 }}
             className="space-y-6"
           >
-            <div className="bg-gradient-to-br from-primary/10 to-secondary rounded-3xl p-6 border border-primary/10 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Package className="w-24 h-24" />
+            {/* Clients Birthdays */}
+            <div className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+              <div className="absolute top-0 right-0 p-8 bg-gradient-to-bl from-primary/10 to-transparent opacity-50 group-hover:opacity-100 transition-opacity"></div>
+              <div className="flex items-center justify-between mb-6 relative">
+                <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                  <Gift className="w-5 h-5 text-primary" />
+                  Cumpleaños Próximos
+                </h2>
+                <Link href="/clients">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+                    Ver todos
+                  </Button>
+                </Link>
               </div>
-              <h3 className="text-xl font-semibold mb-2 text-foreground relative z-10">Inventario y Catálogo</h3>
-              <p className="text-sm text-muted-foreground mb-5 relative z-10">Gestiona tus productos y existencias.</p>
               
-              <Link href="/inventory">
-                <Button className="w-full rounded-xl bg-white text-primary hover:bg-white/90 border border-primary/20 shadow-sm relative z-10">
-                  Ir al Inventario
-                </Button>
-              </Link>
-            </div>
-
-            {/* Upcoming Birthdays Widget */}
-            <div className="bg-gradient-to-br from-pink-500/10 to-purple-500/10 rounded-3xl p-6 border border-pink-500/10 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Gift className="w-24 h-24 text-pink-500" />
-              </div>
-              <h3 className="text-xl font-semibold mb-4 text-foreground relative z-10 flex items-center gap-2">
-                <Gift className="w-5 h-5 text-pink-500" />
-                Próximos Cumpleaños
-              </h3>
-              <ul className="space-y-3 relative z-10 max-h-[300px] overflow-y-auto">
+              <div className="space-y-4 relative">
                 {upcomingBirthdays.length === 0 ? (
-                  <p className="text-sm text-muted-foreground bg-white/60 p-4 rounded-xl text-center">
-                    No hay cumpleaños próximos en los siguientes 30 días.
-                  </p>
+                  <div className="text-center py-6 text-muted-foreground bg-secondary/20 rounded-2xl border border-dashed border-border/60">
+                    <Gift className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                    <p>No hay cumpleaños próximos</p>
+                  </div>
                 ) : (
-                  upcomingBirthdays.map((client, idx) => (
-                    <li key={idx} className="flex items-center justify-between bg-white/60 p-3 rounded-xl backdrop-blur-sm border border-pink-500/20">
-                      <div>
-                        <span className="font-bold text-sm block">{client.name}</span>
-                        <span className="text-xs text-muted-foreground">{client.formattedDate}</span>
+                  upcomingBirthdays.map((client: any) => (
+                    <div key={client.id} className="flex items-center justify-between p-4 bg-background border border-border/40 rounded-2xl hover:border-primary/30 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <span className="font-bold text-primary">{client.name.charAt(0)}</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">{client.name}</p>
+                          <p className="text-sm text-muted-foreground">{client.formattedDate}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-pink-600 font-bold text-xs bg-pink-100 px-2 py-1 rounded-lg">
-                          {client.daysUntil === 0 ? '¡Hoy!' : `Faltan ${client.daysUntil} d`}
+                      <div className="text-right flex items-center gap-3">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-lg ${client.daysUntil <= 7 ? 'bg-orange-100 text-orange-700' : 'bg-secondary text-secondary-foreground'}`}>
+                          {client.daysUntil === 0 ? '¡Hoy!' : `Faltan ${client.daysUntil} días`}
                         </span>
                         {client.whatsapp && (
-                          <a 
-                            href={`https://wa.me/${client.whatsapp.replace(/\D/g,'')}?text=¡Hola ${client.name}! Vimos que se acerca tu cumpleaños y en Chicle Repostería queremos consentirte...`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="bg-green-100 hover:bg-green-200 text-green-700 p-1.5 rounded-lg transition-colors"
-                            title="Felicitar por WhatsApp"
-                          >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564c.173.087.289.129.332.202.043.073.043.423-.101.827z"/></svg>
+                          <a href={`https://wa.me/${client.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 transition-colors">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
                           </a>
                         )}
                       </div>
