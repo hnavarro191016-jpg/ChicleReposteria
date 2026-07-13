@@ -45,6 +45,15 @@ export default function OrdersPage() {
   
   const [orderType, setOrderType] = useState<"catalog" | "custom">("catalog");
   
+  // Custom Cake State
+  const [customCake, setCustomCake] = useState({
+    name: "",
+    pan: "Vainilla",
+    relleno: "Chocolate",
+    betun: "Chantilly",
+    comments: ""
+  });
+  
   const [formData, setFormData] = useState({
     client_id: "",
     product_id: "",
@@ -150,6 +159,15 @@ export default function OrdersPage() {
       return;
     }
 
+    let finalCustomName = null;
+    
+    if (orderType === "custom") {
+      finalCustomName = `${customCake.name}\n• Pan: ${customCake.pan}\n• Relleno: ${customCake.relleno}\n• Betún: ${customCake.betun}`;
+      if (customCake.comments.trim()) {
+        finalCustomName += `\n• Notas extra: ${customCake.comments.trim()}`;
+      }
+    }
+
     // 2. Create the Order Item
     if (newOrder) {
       await supabase
@@ -157,7 +175,7 @@ export default function OrdersPage() {
         .insert({
           order_id: newOrder.id,
           product_id: orderType === "catalog" ? formData.product_id : null,
-          custom_name: orderType === "custom" ? formData.custom_name : null,
+          custom_name: finalCustomName,
           quantity: 1,
           unit_price: parseFloat(formData.total_amount)
         });
@@ -166,6 +184,7 @@ export default function OrdersPage() {
     setIsSubmitting(false);
     setIsModalOpen(false);
     setFormData({ client_id: "", product_id: "", custom_name: "", delivery_date: "", total_amount: "", advance_payment: "", notes: "" });
+    setCustomCake({ name: "", pan: "Vainilla", relleno: "Chocolate", betun: "Chantilly", comments: "" });
     fetchOrders();
   };
 
@@ -430,16 +449,76 @@ export default function OrdersPage() {
                   </select>
                 </div>
               ) : (
-                <div>
-                  <label className="block text-sm font-medium mb-1.5 ml-1">¿Qué pastel es?</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ej. Pastel de Bodas 3 Pisos"
-                    value={formData.custom_name}
-                    onChange={(e) => setFormData({...formData, custom_name: e.target.value})}
-                    className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    required={orderType === "custom"}
-                  />
+                <div className="space-y-4 bg-secondary/10 p-4 rounded-2xl border border-border/50">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 ml-1">Nombre del Pastel / Ocasión</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ej. Pastel Boda 3 Pisos"
+                      value={customCake.name}
+                      onChange={e => setCustomCake({...customCake, name: e.target.value})}
+                      className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                      required={orderType === "custom"}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 ml-1 text-muted-foreground uppercase tracking-wider">Sabor de Pan</label>
+                      <select 
+                        value={customCake.pan}
+                        onChange={e => setCustomCake({...customCake, pan: e.target.value})}
+                        className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <option>Vainilla</option>
+                        <option>Chocolate</option>
+                        <option>Red Velvet</option>
+                        <option>Zanahoria</option>
+                        <option>Fresa</option>
+                        <option>Otro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 ml-1 text-muted-foreground uppercase tracking-wider">Relleno</label>
+                      <select 
+                        value={customCake.relleno}
+                        onChange={e => setCustomCake({...customCake, relleno: e.target.value})}
+                        className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <option>Chocolate</option>
+                        <option>Fresa</option>
+                        <option>Cajeta</option>
+                        <option>Queso Crema</option>
+                        <option>Sin Relleno</option>
+                        <option>Otro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 ml-1 text-muted-foreground uppercase tracking-wider">Betún</label>
+                      <select 
+                        value={customCake.betun}
+                        onChange={e => setCustomCake({...customCake, betun: e.target.value})}
+                        className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <option>Chantilly</option>
+                        <option>Buttercream</option>
+                        <option>Fondant</option>
+                        <option>Queso</option>
+                        <option>Merengue</option>
+                        <option>Otro</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 ml-1">Diseño / Especificaciones</label>
+                    <textarea 
+                      value={customCake.comments}
+                      onChange={e => setCustomCake({...customCake, comments: e.target.value})}
+                      placeholder="Color rosa pastel, con perlas comestibles..."
+                      className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all min-h-[80px]"
+                    />
+                  </div>
                 </div>
               )}
 
