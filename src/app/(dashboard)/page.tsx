@@ -389,10 +389,10 @@ export default function Dashboard() {
                           </a>
                         )}
                       </div>
-                    </li>
+                    </div>
                   ))
                 )}
-              </ul>
+              </div>
             </div>
 
             {/* Low Stock Alerts */}
