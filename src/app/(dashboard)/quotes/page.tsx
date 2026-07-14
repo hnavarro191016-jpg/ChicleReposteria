@@ -36,6 +36,8 @@ export default function QuotesListPage() {
     switch(status) {
       case 'approved':
         return <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">Aprobada</span>;
+      case 'converted':
+        return <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Pedido Realizado</span>;
       case 'cancelled':
         return <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">Cancelada</span>;
       default:
