@@ -78,7 +78,7 @@ export default function Dashboard() {
     // Fetch Low Stock Inventory
     const { data: inventoryData } = await supabase.from('inventory_items').select('*');
     if (inventoryData) {
-      setLowStockItems(inventoryData.filter((item: any) => item.quantity <= item.min_quantity));
+      setLowStockItems(inventoryData.filter((item: any) => item.stock <= item.min_stock));
     }
 
     // Fetch Clients for birthdays
