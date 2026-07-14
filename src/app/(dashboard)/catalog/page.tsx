@@ -13,6 +13,7 @@ export default function CatalogPage() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   
   // Recipe Modal State
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
@@ -120,7 +121,26 @@ export default function CatalogPage() {
     setLoading(false);
   };
 
-  const handleCreateProduct = async (e: React.FormEvent) => {
+  const openEditModal = (product: any) => {
+    setEditingProductId(product.id);
+    setFormData({
+      name: product.name || "",
+      description: product.description || "",
+      category: product.category || "Pasteles",
+      price: product.price ? product.price.toString() : "",
+    });
+    setSelectedFile(null);
+    setIsModalOpen(true);
+  };
+
+  const openCreateModal = () => {
+    setEditingProductId(null);
+    setFormData({ name: "", description: "", category: "Pasteles", price: "" });
+    setSelectedFile(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
@@ -151,15 +171,28 @@ export default function CatalogPage() {
     }
     
     // 2. Save product to database
-    const { error } = await supabase
-      .from("catalog_products")
-      .insert({
+    let error;
+    if (editingProductId) {
+      const updateData: any = {
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        price: parseFloat(formData.price),
+      };
+      if (uploadedImageUrl) updateData.image_url = uploadedImageUrl;
+      
+      const { error: updateErr } = await supabase.from("catalog_products").update(updateData).eq("id", editingProductId);
+      error = updateErr;
+    } else {
+      const { error: insertErr } = await supabase.from("catalog_products").insert({
         name: formData.name,
         description: formData.description,
         category: formData.category,
         price: parseFloat(formData.price),
         image_url: uploadedImageUrl,
       });
+      error = insertErr;
+    }
 
     setIsSubmitting(false);
 
@@ -169,6 +202,7 @@ export default function CatalogPage() {
       setIsModalOpen(false);
       setFormData({ name: "", description: "", category: "Pasteles", price: "" });
       setSelectedFile(null);
+      setEditingProductId(null);
       fetchProducts();
     }
   };
@@ -189,7 +223,7 @@ export default function CatalogPage() {
         </div>
         
         <Button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateModal}
           className="rounded-xl h-12 px-6 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25 gap-2"
         >
           <Plus className="w-5 h-5" />
@@ -245,14 +279,21 @@ export default function CatalogPage() {
 
                 <p className="text-muted-foreground text-sm flex-1">{product.description}</p>
                 
-                <div className="mt-6 pt-4 border-t border-border/50">
+                <div className="mt-6 pt-4 border-t border-border/50 flex gap-2">
                   <Button 
                     variant="outline" 
-                    className="w-full rounded-xl border-border hover:bg-secondary"
+                    className="flex-1 rounded-xl border-border hover:bg-secondary text-primary"
+                    onClick={() => openEditModal(product)}
+                  >
+                    Editar Info
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 rounded-xl border-border hover:bg-secondary gap-2"
                     onClick={() => openRecipeModal(product)}
                   >
-                    <ChefHat className="w-4 h-4 mr-2" />
-                    Editar Receta
+                    <ChefHat className="w-4 h-4" />
+                    Receta
                   </Button>
                 </div>
               </div>
@@ -261,10 +302,10 @@ export default function CatalogPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Product Information Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card w-full max-w-lg rounded-[2.5rem] p-8 shadow-xl border border-border/50 relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-card w-full max-w-lg rounded-[2.5rem] p-8 shadow-xl border border-border/50 relative">
             <button 
               onClick={() => setIsModalOpen(false)}
               className="absolute top-6 right-6 p-2 bg-secondary/50 rounded-full hover:bg-secondary transition-colors"
@@ -272,9 +313,9 @@ export default function CatalogPage() {
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
             
-            <h2 className="text-2xl font-bold mb-6">Nuevo Producto</h2>
+            <h2 className="text-2xl font-bold mb-6">{editingProductId ? "Editar Producto" : "Agregar al Catálogo"}</h2>
             
-            <form onSubmit={handleCreateProduct} className="space-y-4">
+            <form onSubmit={handleSaveProduct} className="space-y-4">
               
               {/* Image Upload Area */}
               <div>
