@@ -31,7 +31,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [items, setItems] = useState<QuoteItem[]>([]);
-  const [status, setStatus] = useState<"pending" | "approved" | "cancelled">("pending");
+  const [status, setStatus] = useState<"pending" | "approved" | "cancelled" | "converted">("pending");
   
   const [newItemDesc, setNewItemDesc] = useState("");
   const [newItemPrice, setNewItemPrice] = useState("");
@@ -311,6 +311,10 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         if (itemsError) console.error("Error inserting order items:", itemsError);
       }
       
+      // Update Quote Status to "converted"
+      await supabase.from("quotes").update({ status: "converted" }).eq("id", quoteId);
+      setStatus("converted");
+
       setCreatingOrder(false);
       setShowOrderModal(false);
       alert("¡Pedido creado exitosamente!");
@@ -481,17 +485,24 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
               Guardar
             </Button>
             <Button 
-              variant={status === "approved" ? "default" : "outline"}
-              className={`flex-1 md:flex-none gap-2 ${status === "approved" ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''}`}
-              onClick={toggleApprove}
+              variant={(status === "approved" || status === "converted") ? "default" : "outline"}
+              className={`flex-1 md:flex-none gap-2 ${(status === "approved" || status === "converted") ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''}`}
+              onClick={status === "converted" ? undefined : toggleApprove}
+              disabled={status === "converted"}
             >
               <CheckCircle className="w-4 h-4" />
-              {status === "approved" ? "Aprobada" : "Marcar Aprobada"}
+              {status === "converted" ? "Cotización Cerrada" : (status === "approved" ? "Aprobada" : "Marcar Aprobada")}
             </Button>
             {status === "approved" && (
               <Button onClick={() => setShowOrderModal(true)} className="flex-1 md:flex-none gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-600/20">
                 <Package className="w-4 h-4" />
                 Convertir a Pedido
+              </Button>
+            )}
+            {status === "converted" && (
+              <Button disabled className="flex-1 md:flex-none gap-2 bg-blue-100 text-blue-500 shadow-none border border-blue-200">
+                <Package className="w-4 h-4" />
+                Ya es un Pedido
               </Button>
             )}
             <Button onClick={generatePDF} className="flex-1 md:flex-none gap-2 bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/20">
@@ -557,56 +568,65 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
 
         <div className="p-5 bg-muted/30 rounded-xl space-y-4 border border-border/50">
           <div className="flex justify-between items-center">
-            <h3 className="font-bold text-base text-foreground">Conceptos de la Cotización</h3>
-            <Button 
-              onClick={() => setShowCakeModal(true)}
-              className="bg-pink-100 hover:bg-pink-200 text-pink-700 shadow-sm border border-pink-200 gap-2 h-9"
-            >
-              <Cake className="w-4 h-4" />
-              Armar Pastel
-            </Button>
+            <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+              <Cake className="w-5 h-5 text-primary" />
+              Conceptos de la Cotización
+            </h3>
+            {status !== "converted" && (
+              <Button 
+                onClick={() => setShowCakeModal(true)}
+                className="bg-pink-100 hover:bg-pink-200 text-pink-700 shadow-sm border border-pink-200 gap-2 h-9"
+              >
+                <Cake className="w-4 h-4" />
+                Armar Pastel
+              </Button>
+            )}
           </div>
           
           <div className="flex flex-col gap-3 pt-2">
-            <div className="flex flex-col md:flex-row gap-3">
-              <input 
-                type="text"
-                value={newItemDesc}
-                onChange={e => setNewItemDesc(e.target.value)}
-                placeholder="Concepto (ej. Letrero extra)"
-                className="flex-[2] px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
-                onKeyDown={(e) => e.key === 'Enter' && addItem()}
-              />
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <input 
-                  type="number"
-                  value={newItemPrice}
-                  onChange={e => setNewItemPrice(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full pl-8 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
-                  onKeyDown={(e) => e.key === 'Enter' && addItem()}
-                />
-              </div>
-            </div>
-            
-            <div className="flex flex-col md:flex-row gap-3">
-              <div className="relative flex-1">
-                <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            {status === "converted" ? (
+               <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-xl flex items-center gap-3">
+                 <Package className="w-5 h-5 shrink-0" />
+                 <p className="text-sm font-medium">Esta cotización ya fue convertida a pedido, por lo que no se pueden agregar más conceptos ni editar sus datos.</p>
+               </div>
+            ) : (
+              <div className="flex flex-col md:flex-row gap-3">
                 <input 
                   type="text"
-                  value={newItemComments}
-                  onChange={e => setNewItemComments(e.target.value)}
-                  placeholder="Comentarios o peticiones especiales (Opcional)"
-                  className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground text-sm"
+                  value={newItemDesc}
+                  onChange={e => setNewItemDesc(e.target.value)}
+                  placeholder="Concepto (ej. Letrero extra)"
+                  className="flex-[2] px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
                   onKeyDown={(e) => e.key === 'Enter' && addItem()}
                 />
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <input 
+                    type="number"
+                    value={newItemPrice}
+                    onChange={e => setNewItemPrice(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full pl-8 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                    onKeyDown={(e) => e.key === 'Enter' && addItem()}
+                  />
+                </div>
+                <div className="relative flex-1">
+                  <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input 
+                    type="text"
+                    value={newItemComments}
+                    onChange={e => setNewItemComments(e.target.value)}
+                    placeholder="Comentarios (Opcional)"
+                    className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground text-sm"
+                    onKeyDown={(e) => e.key === 'Enter' && addItem()}
+                  />
+                </div>
+                <Button onClick={addItem} className="bg-primary hover:bg-primary/90 text-white md:w-32 rounded-xl gap-2 h-10">
+                  <Plus className="w-4 h-4" />
+                  Agregar
+                </Button>
               </div>
-              <Button onClick={addItem} className="bg-primary hover:bg-primary/90 text-white md:w-32 rounded-xl h-[42px] gap-2">
-                <Plus className="w-4 h-4" />
-                Agregar
-              </Button>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -664,13 +684,15 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                   items.map((item) => (
                     <tr key={item.local_id} className="border-b border-[#f3f4f6] group hover:bg-[#f9fafb] transition-colors">
                       <td className="py-4 px-4 text-[#1f2937] flex items-start gap-3 font-medium">
-                        <button 
-                          onClick={() => removeItem(item.local_id)}
-                          className="trash-btn mt-1 text-[#f87171] hover:text-[#dc2626] hover:bg-[#fef2f2] p-1.5 rounded-lg transition-colors"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {status !== "converted" && (
+                          <button 
+                            onClick={() => removeItem(item.local_id)}
+                            className="trash-btn mt-1 text-[#f87171] hover:text-[#dc2626] hover:bg-[#fef2f2] p-1.5 rounded-lg transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                         <span className="whitespace-pre-wrap">{item.description}</span>
                       </td>
                       <td className="py-4 px-4 text-[#1f2937] text-right font-bold text-lg align-top">
