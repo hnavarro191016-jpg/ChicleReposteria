@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Search, UserCircle, Phone, Calendar, X, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
+import Link from "next/link";
 
 export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -164,9 +165,11 @@ export default function ClientsPage() {
               </div>
               
               <div className="mt-6 pt-4 border-t border-border/50 flex gap-2">
-                <Button variant="outline" className="flex-1 rounded-xl border-border hover:bg-secondary">
-                  Ver Detalles
-                </Button>
+                <Link href={`/clients/${client.id}`} className="flex-1">
+                  <Button variant="outline" className="w-full rounded-xl border-border hover:bg-secondary">
+                    Ver Detalles
+                  </Button>
+                </Link>
                 {client.whatsapp && (
                   <a 
                     href={`https://wa.me/${client.whatsapp.replace(/\D/g,'')}`}
