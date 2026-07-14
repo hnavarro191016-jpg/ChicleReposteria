@@ -394,6 +394,46 @@ export default function Dashboard() {
                 )}
               </ul>
             </div>
+
+            {/* Low Stock Alerts */}
+            <div className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+              <div className="absolute top-0 right-0 p-8 bg-gradient-to-bl from-orange-500/10 to-transparent opacity-50 group-hover:opacity-100 transition-opacity"></div>
+              <div className="flex items-center justify-between mb-6 relative">
+                <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                  <AlertTriangle className="w-5 h-5 text-orange-500" />
+                  Inventario Bajo
+                </h2>
+                <Link href="/inventory">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+                    Ver almacén
+                  </Button>
+                </Link>
+              </div>
+              
+              <div className="space-y-4 relative">
+                {lowStockItems.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground bg-secondary/20 rounded-2xl border border-dashed border-border/60">
+                    <Package className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                    <p>Todo en orden en almacén</p>
+                  </div>
+                ) : (
+                  lowStockItems.slice(0, 5).map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between p-4 bg-background border border-orange-200/50 rounded-2xl hover:border-orange-300 transition-colors">
+                      <div>
+                        <p className="font-semibold text-foreground">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">{item.category}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-lg font-bold text-orange-600">
+                          {item.quantity} {item.unit}
+                        </span>
+                        <p className="text-xs text-muted-foreground">Mín: {item.min_quantity}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </motion.div>
         </div>
       </div>
