@@ -35,6 +35,8 @@ export default function Dashboard() {
   });
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [dateFilter, setDateFilter] = useState("mes");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
   const [upcomingOrders, setUpcomingOrders] = useState<any[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<any[]>([]);
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<any[]>([]);
@@ -148,6 +150,19 @@ export default function Dashboard() {
         const d = new Date(e.date);
         return d >= startOfMonth && d <= endOfMonth;
       });
+    } else if (dateFilter === "custom") {
+      if (customStartDate && customEndDate) {
+        const start = new Date(customStartDate + "T00:00:00");
+        const end = new Date(customEndDate + "T23:59:59");
+        filteredOrders = allOrders.filter(o => {
+          const d = new Date(o.delivery_date);
+          return d >= start && d <= end;
+        });
+        filteredExpenses = allExpenses.filter(e => {
+          const d = new Date(e.date);
+          return d >= start && d <= end;
+        });
+      }
     }
 
     // Stats for delivered only (profits)
@@ -198,7 +213,7 @@ export default function Dashboard() {
       });
     setUpcomingOrders(pendingOrders);
 
-  }, [allOrders, allExpenses, dateFilter]);
+  }, [allOrders, allExpenses, dateFilter, customStartDate, customEndDate]);
 
 
 
@@ -234,6 +249,13 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3">
+            {dateFilter === 'custom' && (
+              <div className="flex items-center gap-2 bg-card border border-border/50 rounded-2xl p-1 shadow-sm h-11 px-3">
+                <input type="date" className="bg-transparent text-sm font-medium focus:outline-none text-foreground" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} />
+                <span className="text-muted-foreground font-bold">-</span>
+                <input type="date" className="bg-transparent text-sm font-medium focus:outline-none text-foreground" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} />
+              </div>
+            )}
             <div className="flex items-center bg-card border border-border/50 rounded-2xl p-1 shadow-sm h-11">
               <Filter className="w-4 h-4 text-muted-foreground ml-3 mr-2 shrink-0" />
               <select 
@@ -244,6 +266,7 @@ export default function Dashboard() {
                 <option value="semana">Esta Semana</option>
                 <option value="mes">Este Mes</option>
                 <option value="historico">Histórico</option>
+                <option value="custom">Personalizado</option>
               </select>
             </div>
             <Link href="/orders">
