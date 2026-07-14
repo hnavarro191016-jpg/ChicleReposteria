@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Download, CheckCircle, FileText, User, Phone, Calendar, Save, ArrowLeft, Loader2, Cake, MessageSquare, Package } from "lucide-react";
+import { Plus, Trash2, Download, CheckCircle, FileText, User, Phone, Calendar, Save, ArrowLeft, Loader2, Cake, MessageSquare, Package, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 
@@ -505,6 +505,20 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                 Ya es un Pedido
               </Button>
             )}
+            <Button 
+              onClick={() => {
+                const url = `https://chicle-reposteria.vercel.app/public/quote/${quoteId}`;
+                const text = `¡Hola! Te comparto tu cotización de Chicle Repostería por un total de $${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}.\n\nPuedes revisarla a detalle y aprobarla directamente desde este enlace:\n${url}\n\n¡Quedo a tus órdenes!`;
+                const whatsappUrl = clientWhatsapp 
+                  ? `https://wa.me/${clientWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`
+                  : `https://wa.me/?text=${encodeURIComponent(text)}`;
+                window.open(whatsappUrl, '_blank');
+              }}
+              className="flex-1 md:flex-none gap-2 bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-md shadow-[#25D366]/20"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Enviar por WhatsApp
+            </Button>
             <Button onClick={generatePDF} className="flex-1 md:flex-none gap-2 bg-primary hover:bg-primary/90 text-white shadow-md shadow-primary/20">
               <Download className="w-4 h-4" />
               Descargar PDF
