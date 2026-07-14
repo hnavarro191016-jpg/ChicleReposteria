@@ -158,7 +158,7 @@ export default function PublicQuotePage({ params }: { params: Promise<{ id: stri
           {/* Action Area */}
           {!success && (
             <div className="relative z-10 pt-4">
-              {quote.status === "pending" ? (
+              {quote.status !== "approved" && quote.status !== "converted" ? (
                 <Button 
                   onClick={approveQuote} 
                   disabled={approving}
@@ -169,10 +169,10 @@ export default function PublicQuotePage({ params }: { params: Promise<{ id: stri
               ) : (
                 <div className="bg-gray-100 border border-gray-200 text-gray-600 p-4 rounded-2xl text-center font-semibold flex items-center justify-center gap-2">
                   <CheckCircle className="w-5 h-5 text-gray-500" />
-                  Esta cotización ya está aprobada
+                  Esta cotización ya está {quote.status === "converted" ? "cerrada y es un pedido" : "aprobada"}
                 </div>
               )}
-              {quote.status === "pending" && (
+              {quote.status !== "approved" && quote.status !== "converted" && (
                 <p className="text-center text-xs text-gray-400 mt-4 font-medium">
                   Al aprobar esta cotización, confirmas que los conceptos y el total son correctos.
                 </p>
