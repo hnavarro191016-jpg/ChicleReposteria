@@ -425,9 +425,9 @@ export default function Dashboard() {
                       </div>
                       <div className="text-right">
                         <span className="text-lg font-bold text-orange-600">
-                          {item.quantity} {item.unit}
+                          {item.stock} {item.unit}
                         </span>
-                        <p className="text-xs text-muted-foreground">Mín: {item.min_quantity}</p>
+                        <p className="text-xs text-muted-foreground">Mín: {item.min_stock}</p>
                       </div>
                     </div>
                   ))
