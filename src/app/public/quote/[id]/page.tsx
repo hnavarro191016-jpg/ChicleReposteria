@@ -38,8 +38,13 @@ export default function PublicQuotePage({ params }: { params: Promise<{ id: stri
         
       if (itemsError) throw itemsError;
       
+      const isConvertedFlag = itemsData?.some(item => item.description === "[SYSTEM_CONVERTED_FLAG]");
+      if (isConvertedFlag) {
+        quoteData.status = "converted";
+      }
+      
       setQuote(quoteData);
-      setItems(itemsData || []);
+      setItems(itemsData?.filter(i => i.description !== "[SYSTEM_CONVERTED_FLAG]") || []);
     } catch (err: any) {
       console.error(err);
       setError("No se pudo cargar la cotización. Puede que el enlace sea incorrecto o haya expirado.");

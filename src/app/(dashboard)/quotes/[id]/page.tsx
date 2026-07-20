@@ -88,7 +88,11 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         .order("created_at", { ascending: true });
         
       if (quoteItems) {
-        setItems(quoteItems.map(i => ({
+        const isConvertedFlag = quoteItems.some(i => i.description === "[SYSTEM_CONVERTED_FLAG]");
+        if (isConvertedFlag) {
+          setStatus("converted");
+        }
+        setItems(quoteItems.filter(i => i.description !== "[SYSTEM_CONVERTED_FLAG]").map(i => ({
           id: i.id,
           description: i.description,
           price: i.price,
@@ -311,8 +315,16 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
         if (itemsError) console.error("Error inserting order items:", itemsError);
       }
       
-      // Update Quote Status to "converted"
+      // Update Quote Status to "converted" (might fail due to constraint on older setups)
       await supabase.from("quotes").update({ status: "converted" }).eq("id", quoteId);
+      
+      // Fallback: Insert a dummy item to reliably mark it as converted across all setups
+      await supabase.from("quote_items").insert({
+         quote_id: quoteId,
+         description: "[SYSTEM_CONVERTED_FLAG]",
+         price: 0
+      });
+      
       setStatus("converted");
 
       setCreatingOrder(false);

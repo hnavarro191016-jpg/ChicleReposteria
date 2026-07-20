@@ -21,10 +21,16 @@ export default function QuotesListPage() {
     setLoading(true);
     const { data } = await supabase
       .from("quotes")
-      .select("*")
+      .select("*, quote_items(description)")
       .order("created_at", { ascending: false });
     
-    if (data) setQuotes(data);
+    if (data) {
+      const mapped = data.map(q => {
+        const isConverted = q.quote_items?.some((i: any) => i.description === "[SYSTEM_CONVERTED_FLAG]");
+        return { ...q, status: isConverted ? "converted" : q.status };
+      });
+      setQuotes(mapped);
+    }
     setLoading(false);
   };
 
