@@ -23,6 +23,8 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"general" | "users">("general");
   const [isSaving, setIsSaving] = useState(false);
   const [storeName, setStoreName] = useState("");
+  const [tresLechesPrice, setTresLechesPrice] = useState("5.00");
+  const [cookieFillingPrice, setCookieFillingPrice] = useState("5.00");
   
   const [usersList, setUsersList] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -37,6 +39,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (settings) {
       setStoreName(settings.store_name);
+      if (settings.tres_leches_extra_price !== undefined) setTresLechesPrice(settings.tres_leches_extra_price.toString());
+      if (settings.cookie_filling_extra_price !== undefined) setCookieFillingPrice(settings.cookie_filling_extra_price.toString());
     }
   }, [settings]);
 
@@ -55,10 +59,15 @@ export default function SettingsPage() {
 
   const saveGeneralSettings = async () => {
     setIsSaving(true);
+    const dataToSave = {
+      store_name: storeName,
+      tres_leches_extra_price: parseFloat(tresLechesPrice) || 0,
+      cookie_filling_extra_price: parseFloat(cookieFillingPrice) || 0,
+    };
     if (settings?.id) {
-      await supabase.from("business_settings").update({ store_name: storeName }).eq("id", settings.id);
+      await supabase.from("business_settings").update(dataToSave).eq("id", settings.id);
     } else {
-      await supabase.from("business_settings").insert({ store_name: storeName });
+      await supabase.from("business_settings").insert(dataToSave);
     }
     await refreshSettings();
     setIsSaving(false);
@@ -116,6 +125,33 @@ export default function SettingsPage() {
                   placeholder="Ej. SweetERP"
                 />
                 <p className="text-sm text-muted-foreground mt-2">Este nombre aparecerá en el menú lateral y futuras facturas.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Costo Extra: Pan 3 Leches ($)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    value={tresLechesPrice}
+                    onChange={(e) => setTresLechesPrice(e.target.value)}
+                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                  />
+                  <p className="text-sm text-muted-foreground mt-2">Se sumará al elegir un pastel de 3 Leches en una cotización.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Costo Extra: Relleno de Galleta ($)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    value={cookieFillingPrice}
+                    onChange={(e) => setCookieFillingPrice(e.target.value)}
+                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                  />
+                  <p className="text-sm text-muted-foreground mt-2">Se sumará al elegir una galleta rellena en una cotización.</p>
+                </div>
               </div>
 
               <div className="pt-4 border-t border-border/50">

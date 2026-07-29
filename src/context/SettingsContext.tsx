@@ -8,6 +8,8 @@ interface BusinessSettings {
   store_name: string;
   currency: string;
   tax_rate: number;
+  tres_leches_extra_price: number;
+  cookie_filling_extra_price: number;
 }
 
 interface UserProfile {

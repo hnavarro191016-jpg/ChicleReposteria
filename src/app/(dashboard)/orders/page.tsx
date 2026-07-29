@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Search, Calendar, ChevronRight, Clock, CheckCircle2, Package, Loader2, X, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
+import { useSettings } from "@/context/SettingsContext";
 
 // Status definitions for the Kanban board
 const STATUSES = ["Pendiente", "Produccion", "Listo", "Entregado"];
@@ -29,6 +30,7 @@ const StatusColor = ({ status }: { status: string }) => {
 };
 
 export default function OrdersPage() {
+  const { settings } = useSettings();
   const [orders, setOrders] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -52,6 +54,12 @@ export default function OrdersPage() {
     relleno: "Chocolate",
     betun: "Chantilly",
     comments: ""
+  });
+
+  const [catalogExtras, setCatalogExtras] = useState({
+    is3Leches: false,
+    cakeFlavor: "N/A",
+    isFilled: false,
   });
   
   const [formData, setFormData] = useState({
@@ -83,7 +91,7 @@ export default function OrdersPage() {
   const fetchProducts = async () => {
     const { data } = await supabase
       .from("catalog_products")
-      .select("id, name, price")
+      .select("id, name, price, category")
       .order("name", { ascending: true });
     if (data) setProducts(data);
   };
@@ -131,9 +139,28 @@ export default function OrdersPage() {
     setFormData({
       ...formData,
       product_id: productId,
-      total_amount: product ? product.price.toString() : formData.total_amount
+    });
+    setCatalogExtras({
+      is3Leches: false,
+      cakeFlavor: "N/A",
+      isFilled: false,
     });
   };
+
+  useEffect(() => {
+    if (orderType === "catalog" && formData.product_id) {
+      const product = products.find(p => p.id === formData.product_id);
+      if (product) {
+        let base = parseFloat(product.price) || 0;
+        if (product.category === "Pasteles" && catalogExtras.is3Leches) {
+          base += settings?.tres_leches_extra_price || 5;
+        } else if (product.category === "Galletas" && catalogExtras.isFilled) {
+          base += settings?.cookie_filling_extra_price || 5;
+        }
+        setFormData(prev => ({ ...prev, total_amount: base.toString() }));
+      }
+    }
+  }, [formData.product_id, catalogExtras, orderType, products, settings]);
 
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,6 +192,18 @@ export default function OrdersPage() {
       finalCustomName = `${customCake.name}\n• Pan: ${customCake.pan}\n• Relleno: ${customCake.relleno}\n• Betún: ${customCake.betun}`;
       if (customCake.comments.trim()) {
         finalCustomName += `\n• Notas extra: ${customCake.comments.trim()}`;
+      }
+    } else if (orderType === "catalog" && formData.product_id) {
+      const product = products.find(p => p.id === formData.product_id);
+      if (product) {
+        let nameWithExtras = product.name;
+        if (product.category === "Pasteles") {
+          if (catalogExtras.is3Leches) nameWithExtras += " (3 Leches)";
+          if (catalogExtras.cakeFlavor !== "N/A") nameWithExtras += ` (${catalogExtras.cakeFlavor})`;
+        } else if (product.category === "Galletas") {
+          if (catalogExtras.isFilled) nameWithExtras += " (Rellena)";
+        }
+        finalCustomName = nameWithExtras;
       }
     }
 
@@ -334,7 +373,7 @@ export default function OrdersPage() {
                 ) : (
                   column.items.map(order => {
                     const item = order.order_items?.[0];
-                    const productName = item?.catalog_products?.name || item?.custom_name || 'Pedido sin detalle';
+                    const productName = item?.custom_name || item?.catalog_products?.name || 'Pedido sin detalle';
                     const firstLineName = productName.split('\n')[0]; // To avoid huge cards if there are many details
 
                     return (
@@ -434,19 +473,66 @@ export default function OrdersPage() {
               </div>
 
               {orderType === "catalog" ? (
-                <div>
-                  <label className="block text-sm font-medium mb-1.5 ml-1">Producto</label>
-                  <select 
-                    value={formData.product_id}
-                    onChange={(e) => handleProductSelect(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    required={orderType === "catalog"}
-                  >
-                    <option value="">Selecciona un producto del catálogo...</option>
-                    {products.map(product => (
-                      <option key={product.id} value={product.id}>{product.name} (${product.price})</option>
-                    ))}
-                  </select>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 ml-1">Producto</label>
+                    <select 
+                      value={formData.product_id}
+                      onChange={(e) => handleProductSelect(e.target.value)}
+                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      required={orderType === "catalog"}
+                    >
+                      <option value="">Selecciona un producto del catálogo...</option>
+                      {products.map(product => (
+                        <option key={product.id} value={product.id}>{product.name} (${product.price})</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {formData.product_id && (products.find(p => p.id === formData.product_id)?.category === "Pasteles" || products.find(p => p.id === formData.product_id)?.category === "Galletas") && (
+                    <div className="bg-secondary/10 p-4 rounded-xl border border-border/50 space-y-3">
+                      {products.find(p => p.id === formData.product_id)?.category === "Pasteles" && (
+                        <>
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="checkbox" 
+                              id="is3Leches"
+                              checked={catalogExtras.is3Leches}
+                              onChange={(e) => setCatalogExtras(prev => ({...prev, is3Leches: e.target.checked}))}
+                              className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <label htmlFor="is3Leches" className="text-sm font-medium">¿Hacer 3 Leches? (+${settings?.tres_leches_extra_price || 5})</label>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold mb-1 ml-1 text-muted-foreground uppercase tracking-wider">Sabor</label>
+                            <select 
+                              value={catalogExtras.cakeFlavor}
+                              onChange={e => setCatalogExtras(prev => ({...prev, cakeFlavor: e.target.value}))}
+                              className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            >
+                              <option value="N/A">Sin especificar</option>
+                              <option value="Vainilla">Vainilla</option>
+                              <option value="Chocolate">Chocolate</option>
+                              <option value="Red Velvet">Red Velvet</option>
+                            </select>
+                          </div>
+                        </>
+                      )}
+                      
+                      {products.find(p => p.id === formData.product_id)?.category === "Galletas" && (
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="checkbox" 
+                            id="isFilled"
+                            checked={catalogExtras.isFilled}
+                            onChange={(e) => setCatalogExtras(prev => ({...prev, isFilled: e.target.checked}))}
+                            className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+                          />
+                          <label htmlFor="isFilled" className="text-sm font-medium">¿Rellena de Chocolate? (+${settings?.cookie_filling_extra_price || 5})</label>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4 bg-secondary/10 p-4 rounded-2xl border border-border/50">
@@ -625,7 +711,7 @@ export default function OrdersPage() {
                   {selectedOrder.order_items?.map((item: any, idx: number) => (
                     <li key={idx} className="flex gap-3 items-start">
                       <Tag className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span className="text-sm font-medium whitespace-pre-wrap leading-relaxed">{item.catalog_products?.name || item.custom_name}</span>
+                      <span className="text-sm font-medium whitespace-pre-wrap leading-relaxed">{item.custom_name || item.catalog_products?.name}</span>
                     </li>
                   ))}
                   {(!selectedOrder.order_items || selectedOrder.order_items.length === 0) && (

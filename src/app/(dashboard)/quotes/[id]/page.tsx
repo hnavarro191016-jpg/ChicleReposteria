@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, Download, CheckCircle, FileText, User, Phone, Calendar, Save, ArrowLeft, Loader2, Cake, MessageSquare, Package, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
+import { useSettings } from "@/context/SettingsContext";
 
 interface QuoteItem {
   id?: string;
@@ -19,6 +20,8 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   const resolvedParams = use(params);
   const quoteId = resolvedParams.id;
   const isNew = quoteId === "new";
+  const { settings } = useSettings();
+  const [catalogProducts, setCatalogProducts] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -46,6 +49,16 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   const [cakeBetun, setCakeBetun] = useState("Chantilly");
   const [cakeComments, setCakeComments] = useState("");
 
+  // Catalog Builder Modal State
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [selectedCatalogProductId, setSelectedCatalogProductId] = useState("");
+  const [catalogExtras, setCatalogExtras] = useState({
+    is3Leches: false,
+    cakeFlavor: "Vainilla",
+    isFilled: false,
+  });
+  const [catalogComments, setCatalogComments] = useState("");
+
   // Registration Modal State
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   
@@ -58,10 +71,16 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   const pdfRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    fetchCatalogProducts();
     if (!isNew) {
       fetchQuote();
     }
   }, [quoteId]);
+
+  const fetchCatalogProducts = async () => {
+    const { data } = await supabase.from("catalog_products").select("id, name, price, category").order("name");
+    if (data) setCatalogProducts(data);
+  };
 
   const fetchQuote = async () => {
     setLoading(true);
@@ -151,6 +170,52 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
     setCakeRelleno("Chocolate");
     setCakeBetun("Chantilly");
     setCakeComments("");
+  };
+
+  const addCatalogItem = () => {
+    if (!selectedCatalogProductId) return;
+    const product = catalogProducts.find(p => p.id === selectedCatalogProductId);
+    if (!product) return;
+
+    let basePrice = parseFloat(product.price) || 0;
+    let finalDesc = product.name;
+
+    if (product.category === "Pasteles") {
+      if (catalogExtras.is3Leches) {
+        finalDesc += " (3 Leches)";
+        basePrice += settings?.tres_leches_extra_price || 5;
+      }
+      if (catalogExtras.cakeFlavor !== "N/A") {
+        finalDesc += ` (${catalogExtras.cakeFlavor})`;
+      }
+    } else if (product.category === "Galletas") {
+      if (catalogExtras.isFilled) {
+        finalDesc += " (Rellena)";
+        basePrice += settings?.cookie_filling_extra_price || 5;
+      }
+    }
+
+    if (catalogComments.trim()) {
+      finalDesc += `\n• Notas extra: ${catalogComments.trim()}`;
+    }
+
+    setItems([
+      ...items,
+      {
+        local_id: Math.random().toString(36).substr(2, 9),
+        description: finalDesc,
+        price: basePrice
+      }
+    ]);
+
+    setShowCatalogModal(false);
+    setSelectedCatalogProductId("");
+    setCatalogComments("");
+    setCatalogExtras({
+      is3Leches: false,
+      cakeFlavor: "Vainilla",
+      isFilled: false,
+    });
   };
 
   const removeItem = (local_id: string) => {
@@ -599,13 +664,22 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
               Conceptos de la Cotización
             </h3>
             {status !== "converted" && (
-              <Button 
-                onClick={() => setShowCakeModal(true)}
-                className="bg-pink-100 hover:bg-pink-200 text-pink-700 shadow-sm border border-pink-200 gap-2 h-9"
-              >
-                <Cake className="w-4 h-4" />
-                Armar Pastel
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => setShowCatalogModal(true)}
+                  className="bg-primary hover:bg-primary/90 text-white shadow-sm gap-2 h-9"
+                >
+                  <Package className="w-4 h-4" />
+                  De Catálogo
+                </Button>
+                <Button 
+                  onClick={() => setShowCakeModal(true)}
+                  className="bg-pink-100 hover:bg-pink-200 text-pink-700 shadow-sm border border-pink-200 gap-2 h-9"
+                >
+                  <Cake className="w-4 h-4" />
+                  Armar Pastel
+                </Button>
+              </div>
             )}
           </div>
           
@@ -848,6 +922,112 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
               </Button>
               <Button onClick={addCakeItem} className="bg-primary hover:bg-primary/90 text-white px-6">
                 Agregar Pastel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal De Catálogo */}
+      {showCatalogModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-border">
+            <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
+              <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Package className="w-6 h-6 text-primary" />
+                Producto del Catálogo
+              </h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold mb-1 text-foreground">Selecciona un Producto</label>
+                <select 
+                  value={selectedCatalogProductId}
+                  onChange={(e) => {
+                    setSelectedCatalogProductId(e.target.value);
+                    setCatalogExtras({
+                      is3Leches: false,
+                      cakeFlavor: "Vainilla",
+                      isFilled: false,
+                    });
+                  }}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                >
+                  <option value="">Selecciona...</option>
+                  {catalogProducts.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} (${p.price})</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedCatalogProductId && (catalogProducts.find(p => p.id === selectedCatalogProductId)?.category === "Pasteles" || catalogProducts.find(p => p.id === selectedCatalogProductId)?.category === "Galletas") && (
+                <div className="bg-secondary/10 p-4 rounded-xl border border-border/50 space-y-3 mt-2">
+                  {catalogProducts.find(p => p.id === selectedCatalogProductId)?.category === "Pasteles" && (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <input 
+                          type="checkbox" 
+                          id="catIs3Leches"
+                          checked={catalogExtras.is3Leches}
+                          onChange={(e) => setCatalogExtras(prev => ({...prev, is3Leches: e.target.checked}))}
+                          className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+                        />
+                        <label htmlFor="catIs3Leches" className="text-sm font-medium">¿Hacer 3 Leches? (+${settings?.tres_leches_extra_price || 5})</label>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold mb-1 ml-1 text-muted-foreground uppercase tracking-wider">Sabor</label>
+                        <select 
+                          value={catalogExtras.cakeFlavor}
+                          onChange={e => setCatalogExtras(prev => ({...prev, cakeFlavor: e.target.value}))}
+                          className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        >
+                          <option value="N/A">Sin especificar</option>
+                          <option value="Vainilla">Vainilla</option>
+                          <option value="Chocolate">Chocolate</option>
+                          <option value="Red Velvet">Red Velvet</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+                  
+                  {catalogProducts.find(p => p.id === selectedCatalogProductId)?.category === "Galletas" && (
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="checkbox" 
+                        id="catIsFilled"
+                        checked={catalogExtras.isFilled}
+                        onChange={(e) => setCatalogExtras(prev => ({...prev, isFilled: e.target.checked}))}
+                        className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+                      />
+                      <label htmlFor="catIsFilled" className="text-sm font-medium">¿Rellena de Chocolate? (+${settings?.cookie_filling_extra_price || 5})</label>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedCatalogProductId && (
+                <div>
+                  <label className="block text-sm font-bold mb-1 mt-2 text-foreground">Comentarios o Peticiones (Opcional)</label>
+                  <div className="relative w-full">
+                    <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                    <textarea 
+                      value={catalogComments}
+                      onChange={e => setCatalogComments(e.target.value)}
+                      placeholder="Ej. Sin nuez, letras..."
+                      className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground min-h-[80px] resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-border">
+              <Button variant="ghost" onClick={() => setShowCatalogModal(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={addCatalogItem} disabled={!selectedCatalogProductId} className="bg-primary hover:bg-primary/90 text-white px-6">
+                Agregar Concepto
               </Button>
             </div>
           </div>
