@@ -5,7 +5,6 @@ import { Plus, Search, Calendar, ChevronRight, Clock, CheckCircle2, Package, Loa
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 import { useSettings } from "@/context/SettingsContext";
-import { useSettings } from "@/context/SettingsContext";
 
 // Status definitions for the Kanban board
 const STATUSES = ["Pendiente", "Produccion", "Listo", "Entregado"];
