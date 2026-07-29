@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Calendar, ChevronRight, Clock, CheckCircle2, Package, Loader2, X, Tag } from "lucide-react";
+import { Plus, Search, Calendar, ChevronRight, Clock, CheckCircle2, Package, Loader2, X, Tag, Trash2, Cake, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
+import { useSettings } from "@/context/SettingsContext";
 import { useSettings } from "@/context/SettingsContext";
 
 // Status definitions for the Kanban board
@@ -44,8 +45,20 @@ export default function OrdersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   
+  interface OrderItem {
+    local_id: string;
+    product_id: string | null;
+    custom_name: string | null;
+    quantity: number;
+    price: number;
+  }
+  const [orderItemsCart, setOrderItemsCart] = useState<OrderItem[]>([]);
   
-  const [orderType, setOrderType] = useState<"catalog" | "custom">("catalog");
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [showCakeModal, setShowCakeModal] = useState(false);
+  const [selectedCatalogProductId, setSelectedCatalogProductId] = useState("");
+  const [catalogQuantity, setCatalogQuantity] = useState(1);
+  const [catalogComments, setCatalogComments] = useState("");
   
   // Custom Cake State
   const [customCake, setCustomCake] = useState({
@@ -53,21 +66,20 @@ export default function OrdersPage() {
     pan: "Vainilla",
     relleno: "Chocolate",
     betun: "Chantilly",
-    comments: ""
+    comments: "",
+    price: "",
+    quantity: 1
   });
 
   const [catalogExtras, setCatalogExtras] = useState({
     is3Leches: false,
-    cakeFlavor: "N/A",
+    cakeFlavor: "Vainilla",
     isFilled: false,
   });
   
   const [formData, setFormData] = useState({
     client_id: "",
-    product_id: "",
-    custom_name: "",
     delivery_date: "",
-    total_amount: "",
     advance_payment: "",
     notes: ""
   });
@@ -91,7 +103,7 @@ export default function OrdersPage() {
   const fetchProducts = async () => {
     const { data } = await supabase
       .from("catalog_products")
-      .select("id, name, price, category")
+      .select("id, name, price, category, image_url")
       .order("name", { ascending: true });
     if (data) setProducts(data);
   };
@@ -106,6 +118,7 @@ export default function OrdersPage() {
         order_items (
           product_id,
           custom_name,
+          quantity,
           catalog_products ( name )
         )
       `)
@@ -133,46 +146,114 @@ export default function OrdersPage() {
     if (!error) fetchOrders();
   };
 
-  // Helper to prefill price when a catalog product is selected
-  const handleProductSelect = (productId: string) => {
-    const product = products.find(p => p.id === productId);
-    setFormData({
-      ...formData,
-      product_id: productId,
-    });
+  const getTotalAmount = () => {
+    return orderItemsCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  };
+
+  const addCatalogItem = () => {
+    if (!selectedCatalogProductId) return;
+    const product = products.find(p => p.id === selectedCatalogProductId);
+    if (!product) return;
+
+    let basePrice = parseFloat(product.price) || 0;
+    let finalDesc = product.name;
+
+    if (product.category === "Pasteles") {
+      if (catalogExtras.is3Leches) {
+        finalDesc += " (3 Leches)";
+        basePrice += settings?.tres_leches_extra_price || 5;
+      }
+      if (catalogExtras.cakeFlavor !== "N/A") {
+        finalDesc += ` (${catalogExtras.cakeFlavor})`;
+      }
+    } else if (product.category === "Galletas") {
+      if (catalogExtras.isFilled) {
+        finalDesc += " (Rellena)";
+        basePrice += settings?.cookie_filling_extra_price || 5;
+      }
+    }
+
+    if (catalogComments.trim()) {
+      finalDesc += `\n• Notas extra: ${catalogComments.trim()}`;
+    }
+
+    setOrderItemsCart([
+      ...orderItemsCart,
+      {
+        local_id: Math.random().toString(36).substr(2, 9),
+        product_id: product.id,
+        custom_name: finalDesc,
+        price: basePrice,
+        quantity: catalogQuantity
+      }
+    ]);
+
+    setShowCatalogModal(false);
+    setSelectedCatalogProductId("");
+    setCatalogComments("");
+    setCatalogQuantity(1);
     setCatalogExtras({
       is3Leches: false,
-      cakeFlavor: "N/A",
+      cakeFlavor: "Vainilla",
       isFilled: false,
     });
   };
 
-  useEffect(() => {
-    if (orderType === "catalog" && formData.product_id) {
-      const product = products.find(p => p.id === formData.product_id);
-      if (product) {
-        let base = parseFloat(product.price) || 0;
-        if (product.category === "Pasteles" && catalogExtras.is3Leches) {
-          base += settings?.tres_leches_extra_price || 5;
-        } else if (product.category === "Galletas" && catalogExtras.isFilled) {
-          base += settings?.cookie_filling_extra_price || 5;
-        }
-        setFormData(prev => ({ ...prev, total_amount: base.toString() }));
-      }
+  const addCustomCakeItem = () => {
+    if (!customCake.name || !customCake.price) {
+      alert("Por favor ponle nombre y precio al pastel.");
+      return;
     }
-  }, [formData.product_id, catalogExtras, orderType, products, settings]);
+    
+    let formattedDesc = `${customCake.name}\n• Pan: ${customCake.pan}\n• Relleno: ${customCake.relleno}\n• Betún: ${customCake.betun}`;
+    if (customCake.comments.trim()) {
+      formattedDesc += `\n• Notas extra: ${customCake.comments.trim()}`;
+    }
+    
+    setOrderItemsCart([
+      ...orderItemsCart,
+      {
+        local_id: Math.random().toString(36).substr(2, 9),
+        product_id: null,
+        custom_name: formattedDesc,
+        price: parseFloat(customCake.price),
+        quantity: customCake.quantity
+      }
+    ]);
+    
+    setShowCakeModal(false);
+    setCustomCake({
+      name: "",
+      pan: "Vainilla",
+      relleno: "Chocolate",
+      betun: "Chantilly",
+      comments: "",
+      price: "",
+      quantity: 1
+    });
+  };
+
+  const removeOrderItem = (local_id: string) => {
+    setOrderItemsCart(orderItemsCart.filter(i => i.local_id !== local_id));
+  };
 
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (orderItemsCart.length === 0) {
+      alert("Agrega al menos un producto al pedido.");
+      return;
+    }
     setIsSubmitting(true);
     
+    const finalTotal = getTotalAmount();
+
     // 1. Create the Main Order
     const { data: newOrder, error: orderError } = await supabase
       .from("orders")
       .insert({
         client_id: formData.client_id,
         delivery_date: new Date(formData.delivery_date).toISOString(),
-        total_amount: parseFloat(formData.total_amount),
+        total_amount: finalTotal,
         advance_payment: parseFloat(formData.advance_payment || "0"),
         notes: formData.notes || null,
         status: "Pendiente"
@@ -186,44 +267,22 @@ export default function OrdersPage() {
       return;
     }
 
-    let finalCustomName = null;
-    
-    if (orderType === "custom") {
-      finalCustomName = `${customCake.name}\n• Pan: ${customCake.pan}\n• Relleno: ${customCake.relleno}\n• Betún: ${customCake.betun}`;
-      if (customCake.comments.trim()) {
-        finalCustomName += `\n• Notas extra: ${customCake.comments.trim()}`;
-      }
-    } else if (orderType === "catalog" && formData.product_id) {
-      const product = products.find(p => p.id === formData.product_id);
-      if (product) {
-        let nameWithExtras = product.name;
-        if (product.category === "Pasteles") {
-          if (catalogExtras.is3Leches) nameWithExtras += " (3 Leches)";
-          if (catalogExtras.cakeFlavor !== "N/A") nameWithExtras += ` (${catalogExtras.cakeFlavor})`;
-        } else if (product.category === "Galletas") {
-          if (catalogExtras.isFilled) nameWithExtras += " (Rellena)";
-        }
-        finalCustomName = nameWithExtras;
-      }
-    }
-
-    // 2. Create the Order Item
+    // 2. Create the Order Items
     if (newOrder) {
-      await supabase
-        .from("order_items")
-        .insert({
-          order_id: newOrder.id,
-          product_id: orderType === "catalog" ? formData.product_id : null,
-          custom_name: finalCustomName,
-          quantity: 1,
-          unit_price: parseFloat(formData.total_amount)
-        });
+      const inserts = orderItemsCart.map(item => ({
+        order_id: newOrder.id,
+        product_id: item.product_id,
+        custom_name: item.custom_name,
+        quantity: item.quantity,
+        unit_price: item.price
+      }));
+      await supabase.from("order_items").insert(inserts);
     }
 
     setIsSubmitting(false);
     setIsModalOpen(false);
-    setFormData({ client_id: "", product_id: "", custom_name: "", delivery_date: "", total_amount: "", advance_payment: "", notes: "" });
-    setCustomCake({ name: "", pan: "Vainilla", relleno: "Chocolate", betun: "Chantilly", comments: "" });
+    setFormData({ client_id: "", delivery_date: "", advance_payment: "", notes: "" });
+    setOrderItemsCart([]);
     fetchOrders();
   };
 
@@ -372,9 +431,9 @@ export default function OrdersPage() {
                   </div>
                 ) : (
                   column.items.map(order => {
-                    const item = order.order_items?.[0];
-                    const productName = item?.custom_name || item?.catalog_products?.name || 'Pedido sin detalle';
-                    const firstLineName = productName.split('\n')[0]; // To avoid huge cards if there are many details
+                    const itemsText = order.order_items?.length > 1 
+                      ? `${order.order_items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0)} artículos en total`
+                      : (order.order_items?.[0] ? `${order.order_items[0].quantity}x ${order.order_items[0].custom_name?.split('\\n')[0] || order.order_items[0].catalog_products?.name || 'Producto'}` : 'Pedido sin detalle');
 
                     return (
                     <div 
@@ -396,7 +455,7 @@ export default function OrdersPage() {
                       
                       <div className="flex items-center gap-1 text-sm font-medium text-primary mb-2 line-clamp-1">
                         <Tag className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{firstLineName}</span>
+                        <span className="truncate">{itemsText}</span>
                       </div>
 
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4 font-medium">
@@ -453,201 +512,98 @@ export default function OrdersPage() {
             
             <h2 className="text-2xl font-bold mb-6">Nuevo Pedido</h2>
             
-            <form onSubmit={handleCreateOrder} className="space-y-4">
+            <form onSubmit={handleCreateOrder} className="space-y-6">
               
-                  <div className="grid grid-cols-2 gap-2 mb-4 bg-secondary/30 p-1 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setOrderType("catalog")}
-                  className={`py-2 text-sm font-semibold rounded-lg transition-colors ${orderType === 'catalog' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
-                >
-                  De Catálogo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOrderType("custom")}
-                  className={`py-2 text-sm font-semibold rounded-lg transition-colors ${orderType === 'custom' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
-                >
-                  Personalizado
-                </button>
-              </div>
-
-              {orderType === "catalog" ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5 ml-1">Producto</label>
-                    <select 
-                      value={formData.product_id}
-                      onChange={(e) => handleProductSelect(e.target.value)}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      required={orderType === "catalog"}
-                    >
-                      <option value="">Selecciona un producto del catálogo...</option>
-                      {products.map(product => (
-                        <option key={product.id} value={product.id}>{product.name} (${product.price})</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {formData.product_id && (products.find(p => p.id === formData.product_id)?.category === "Pasteles" || products.find(p => p.id === formData.product_id)?.category === "Galletas") && (
-                    <div className="bg-secondary/10 p-4 rounded-xl border border-border/50 space-y-3">
-                      {products.find(p => p.id === formData.product_id)?.category === "Pasteles" && (
-                        <>
-                          <div className="flex items-center gap-3">
-                            <input 
-                              type="checkbox" 
-                              id="is3Leches"
-                              checked={catalogExtras.is3Leches}
-                              onChange={(e) => setCatalogExtras(prev => ({...prev, is3Leches: e.target.checked}))}
-                              className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
-                            />
-                            <label htmlFor="is3Leches" className="text-sm font-medium">¿Hacer 3 Leches? (+${settings?.tres_leches_extra_price || 5})</label>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold mb-1 ml-1 text-muted-foreground uppercase tracking-wider">Sabor</label>
-                            <select 
-                              value={catalogExtras.cakeFlavor}
-                              onChange={e => setCatalogExtras(prev => ({...prev, cakeFlavor: e.target.value}))}
-                              className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                            >
-                              <option value="N/A">Sin especificar</option>
-                              <option value="Vainilla">Vainilla</option>
-                              <option value="Chocolate">Chocolate</option>
-                              <option value="Red Velvet">Red Velvet</option>
-                            </select>
-                          </div>
-                        </>
-                      )}
-                      
-                      {products.find(p => p.id === formData.product_id)?.category === "Galletas" && (
-                        <div className="flex items-center gap-3">
-                          <input 
-                            type="checkbox" 
-                            id="isFilled"
-                            checked={catalogExtras.isFilled}
-                            onChange={(e) => setCatalogExtras(prev => ({...prev, isFilled: e.target.checked}))}
-                            className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
-                          />
-                          <label htmlFor="isFilled" className="text-sm font-medium">¿Rellena de Chocolate? (+${settings?.cookie_filling_extra_price || 5})</label>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4 bg-secondary/10 p-4 rounded-2xl border border-border/50">
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5 ml-1">Nombre del Pastel / Ocasión</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ej. Pastel Boda 3 Pisos"
-                      value={customCake.name}
-                      onChange={e => setCustomCake({...customCake, name: e.target.value})}
-                      className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                      required={orderType === "custom"}
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold mb-1 ml-1 text-muted-foreground uppercase tracking-wider">Sabor de Pan</label>
-                      <select 
-                        value={customCake.pan}
-                        onChange={e => setCustomCake({...customCake, pan: e.target.value})}
-                        className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      >
-                        <option>Vainilla</option>
-                        <option>Chocolate</option>
-                        <option>Red Velvet</option>
-                        <option>Zanahoria</option>
-                        <option>Fresa</option>
-                        <option>Otro</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold mb-1 ml-1 text-muted-foreground uppercase tracking-wider">Relleno</label>
-                      <select 
-                        value={customCake.relleno}
-                        onChange={e => setCustomCake({...customCake, relleno: e.target.value})}
-                        className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      >
-                        <option>Chocolate</option>
-                        <option>Fresa</option>
-                        <option>Cajeta</option>
-                        <option>Queso Crema</option>
-                        <option>Sin Relleno</option>
-                        <option>Otro</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold mb-1 ml-1 text-muted-foreground uppercase tracking-wider">Betún</label>
-                      <select 
-                        value={customCake.betun}
-                        onChange={e => setCustomCake({...customCake, betun: e.target.value})}
-                        className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      >
-                        <option>Chantilly</option>
-                        <option>Buttercream</option>
-                        <option>Fondant</option>
-                        <option>Queso</option>
-                        <option>Merengue</option>
-                        <option>Otro</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5 ml-1">Diseño / Especificaciones</label>
-                    <textarea 
-                      value={customCake.comments}
-                      onChange={e => setCustomCake({...customCake, comments: e.target.value})}
-                      placeholder="Color rosa pastel, con perlas comestibles..."
-                      className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all min-h-[80px]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5 ml-1">Cliente</label>
-                <select 
-                  value={formData.client_id}
-                  onChange={(e) => setFormData({...formData, client_id: e.target.value})}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  required
-                >
-                  <option value="">Selecciona un cliente...</option>
-                  {clients.map(client => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1.5 ml-1">Fecha y Hora de Entrega</label>
-                <input 
-                  type="datetime-local" 
-                  value={formData.delivery_date}
-                  onChange={(e) => setFormData({...formData, delivery_date: e.target.value})}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1.5 ml-1">Costo Total ($)</label>
+                  <label className="block text-sm font-medium mb-1.5 ml-1">Cliente *</label>
+                  <select 
+                    value={formData.client_id}
+                    onChange={(e) => setFormData({...formData, client_id: e.target.value})}
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    required
+                  >
+                    <option value="">Selecciona un cliente...</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>{client.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 ml-1">Fecha y Hora de Entrega *</label>
                   <input 
-                    type="number" 
-                    step="0.01"
-                    min="0"
-                    value={formData.total_amount}
-                    onChange={(e) => setFormData({...formData, total_amount: e.target.value})}
+                    type="datetime-local" 
+                    value={formData.delivery_date}
+                    onChange={(e) => setFormData({...formData, delivery_date: e.target.value})}
                     className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
                     required
                   />
                 </div>
-                <div>
+              </div>
+
+              <div className="bg-secondary/10 p-5 rounded-2xl border border-border/50">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                    <Package className="w-5 h-5 text-primary" />
+                    Conceptos del Pedido
+                  </h3>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button"
+                      onClick={() => setShowCatalogModal(true)}
+                      className="bg-primary hover:bg-primary/90 text-white shadow-sm gap-2 h-9"
+                    >
+                      <Search className="w-4 h-4" />
+                      Catálogo
+                    </Button>
+                    <Button 
+                      type="button"
+                      onClick={() => setShowCakeModal(true)}
+                      className="bg-pink-100 hover:bg-pink-200 text-pink-700 shadow-sm border border-pink-200 gap-2 h-9"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Personalizado
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {orderItemsCart.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground text-sm">
+                      No hay productos agregados al pedido.
+                    </div>
+                  ) : (
+                    orderItemsCart.map((item) => (
+                      <div key={item.local_id} className="flex justify-between items-start p-3 bg-background border border-border rounded-xl shadow-sm">
+                        <div className="flex-1 pr-4">
+                          <p className="text-sm font-bold whitespace-pre-wrap">{item.custom_name}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Cantidad: {item.quantity} x ${(item.price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <span className="font-bold text-primary">${(item.price * item.quantity).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                          <button 
+                            type="button"
+                            onClick={() => removeOrderItem(item.local_id)}
+                            className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                {orderItemsCart.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-border flex justify-between items-center">
+                    <span className="font-bold text-muted-foreground">Total Calculado:</span>
+                    <span className="text-xl font-black text-foreground">${getTotalAmount().toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 md:col-span-1">
                   <label className="block text-sm font-medium mb-1.5 ml-1">Anticipo Dejado ($)</label>
                   <input 
                     type="number" 
@@ -661,22 +617,269 @@ export default function OrdersPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-1.5 ml-1">Notas (Dedicatoria, Sabores extras...)</label>
+                <label className="block text-sm font-medium mb-1.5 ml-1">Notas del Pedido (Opcional)</label>
                 <textarea 
                   value={formData.notes}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none h-24"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none h-20"
                 />
               </div>
 
               <Button 
                 type="submit" 
                 disabled={isSubmitting}
-                className="w-full rounded-xl h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-white mt-6"
+                className="w-full rounded-xl h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-white mt-6 shadow-lg shadow-primary/25"
               >
-                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Crear Pedido"}
+                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Crear Pedido"}
               </Button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal De Catálogo (Visual) */}
+      {showCatalogModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-4xl rounded-3xl p-6 shadow-2xl border border-border flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-6 border-b border-border pb-4 shrink-0">
+              <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Search className="w-6 h-6 text-primary" />
+                Catálogo de Productos
+              </h3>
+              <button onClick={() => setShowCatalogModal(false)} className="p-2 hover:bg-secondary rounded-full transition-colors">
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto min-h-0 pr-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {products.map(p => (
+                  <div 
+                    key={p.id} 
+                    onClick={() => {
+                      setSelectedCatalogProductId(p.id);
+                      setCatalogExtras({ is3Leches: false, cakeFlavor: "Vainilla", isFilled: false });
+                    }}
+                    className={`cursor-pointer rounded-2xl overflow-hidden border-2 transition-all ${selectedCatalogProductId === p.id ? 'border-primary ring-4 ring-primary/20 scale-[1.02] shadow-xl' : 'border-border/50 hover:border-primary/50 hover:shadow-md bg-card'}`}
+                  >
+                    <div className="aspect-[4/3] bg-secondary/30 relative">
+                      {p.image_url ? (
+                        <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                          <Package className="w-10 h-10 opacity-20" />
+                        </div>
+                      )}
+                      <div className="absolute top-2 left-2 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-lg text-xs font-bold text-primary">
+                        {p.category}
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <h4 className="font-bold text-sm text-foreground line-clamp-1">{p.name}</h4>
+                      <p className="text-primary font-black mt-1">${p.price}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {selectedCatalogProductId && (
+              <div className="mt-6 pt-6 border-t border-border shrink-0 bg-secondary/10 p-4 rounded-2xl">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 space-y-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-24">
+                        <label className="block text-xs font-bold mb-1 text-muted-foreground uppercase">Cantidad</label>
+                        <input 
+                          type="number"
+                          min="1"
+                          value={catalogQuantity}
+                          onChange={(e) => setCatalogQuantity(parseInt(e.target.value) || 1)}
+                          className="w-full px-3 py-2 bg-background border border-border rounded-xl text-center font-bold focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      
+                      {products.find(p => p.id === selectedCatalogProductId)?.category === "Pasteles" && (
+                        <div className="flex-1 flex gap-4">
+                          <div className="flex items-center gap-2 mt-4">
+                            <input 
+                              type="checkbox" 
+                              id="catIs3Leches"
+                              checked={catalogExtras.is3Leches}
+                              onChange={(e) => setCatalogExtras(prev => ({...prev, is3Leches: e.target.checked}))}
+                              className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+                            />
+                            <label htmlFor="catIs3Leches" className="text-sm font-bold text-foreground">3 Leches (+${settings?.tres_leches_extra_price || 5})</label>
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-xs font-bold mb-1 text-muted-foreground uppercase">Sabor</label>
+                            <select 
+                              value={catalogExtras.cakeFlavor}
+                              onChange={e => setCatalogExtras(prev => ({...prev, cakeFlavor: e.target.value}))}
+                              className="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                              <option value="N/A">Sin especificar</option>
+                              <option value="Vainilla">Vainilla</option>
+                              <option value="Chocolate">Chocolate</option>
+                              <option value="Red Velvet">Red Velvet</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {products.find(p => p.id === selectedCatalogProductId)?.category === "Galletas" && (
+                        <div className="flex items-center gap-2 mt-4">
+                          <input 
+                            type="checkbox" 
+                            id="catIsFilled"
+                            checked={catalogExtras.isFilled}
+                            onChange={(e) => setCatalogExtras(prev => ({...prev, isFilled: e.target.checked}))}
+                            className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+                          />
+                          <label htmlFor="catIsFilled" className="text-sm font-bold text-foreground">Rellena (+${settings?.cookie_filling_extra_price || 5})</label>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="relative w-full">
+                      <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                      <input 
+                        type="text"
+                        value={catalogComments}
+                        onChange={e => setCatalogComments(e.target.value)}
+                        placeholder="Comentarios o dedicatoria (Opcional)..."
+                        className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-end shrink-0">
+                    <Button onClick={addCatalogItem} className="bg-primary hover:bg-primary/90 text-white px-8 h-12 rounded-xl font-bold shadow-lg shadow-primary/20">
+                      Agregar al Pedido
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Armar Pastel Personalizado */}
+      {showCakeModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-border">
+            <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
+              <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Cake className="w-6 h-6 text-pink-500" />
+                Armar Pastel
+              </h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold mb-1 text-foreground">Descripción / Nombre</label>
+                <input 
+                  type="text" 
+                  value={customCake.name}
+                  onChange={e => setCustomCake({...customCake, name: e.target.value})}
+                  placeholder="Ej. Pastel Boda 3 Pisos"
+                  className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold mb-1 text-pink-500">Tipo de Pan</label>
+                  <select 
+                    value={customCake.pan}
+                    onChange={e => setCustomCake({...customCake, pan: e.target.value})}
+                    className="w-full px-3 py-2 bg-pink-50/50 border border-pink-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  >
+                    <option>Vainilla</option>
+                    <option>Chocolate</option>
+                    <option>Red Velvet</option>
+                    <option>Zanahoria</option>
+                    <option>Otro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold mb-1 text-pink-500">Relleno</label>
+                  <select 
+                    value={customCake.relleno}
+                    onChange={e => setCustomCake({...customCake, relleno: e.target.value})}
+                    className="w-full px-3 py-2 bg-pink-50/50 border border-pink-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  >
+                    <option>Chocolate</option>
+                    <option>Fresa</option>
+                    <option>Cajeta</option>
+                    <option>Queso Crema</option>
+                    <option>Sin Relleno</option>
+                    <option>Otro</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold mb-1 text-pink-500">Betún</label>
+                  <select 
+                    value={customCake.betun}
+                    onChange={e => setCustomCake({...customCake, betun: e.target.value})}
+                    className="w-full px-3 py-2 bg-pink-50/50 border border-pink-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  >
+                    <option>Chantilly</option>
+                    <option>Buttercream</option>
+                    <option>Fondant</option>
+                    <option>Queso</option>
+                    <option>Merengue</option>
+                    <option>Otro</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold mb-1 text-foreground">Cantidad</label>
+                  <input 
+                    type="number"
+                    min="1"
+                    value={customCake.quantity}
+                    onChange={(e) => setCustomCake({...customCake, quantity: parseInt(e.target.value) || 1})}
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold mb-1 text-foreground">Precio Unitario ($)</label>
+                  <input 
+                    type="number" 
+                    value={customCake.price}
+                    onChange={e => setCustomCake({...customCake, price: e.target.value})}
+                    placeholder="0.00"
+                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1 text-foreground">Detalles Extra</label>
+                <div className="relative w-full">
+                  <MessageSquare className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <textarea 
+                    value={customCake.comments}
+                    onChange={e => setCustomCake({...customCake, comments: e.target.value})}
+                    placeholder="Color rosa pastel, con perlas comestibles..."
+                    className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground min-h-[80px] resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-border">
+              <Button variant="ghost" onClick={() => setShowCakeModal(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={addCustomCakeItem} className="bg-primary hover:bg-primary/90 text-white px-6">
+                Agregar Pastel
+              </Button>
+            </div>
           </div>
         </div>
       )}
