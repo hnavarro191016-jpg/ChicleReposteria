@@ -31,6 +31,7 @@ export default function CatalogPage() {
     price: "",
   });
   const [cakeType, setCakeType] = useState("Normal");
+  const [cakeFlavor, setCakeFlavor] = useState("N/A");
   const [cookieType, setCookieType] = useState("Normal");
 
   const supabase = createClient();
@@ -128,6 +129,15 @@ export default function CatalogPage() {
     const is3Leches = product.name?.toLowerCase().includes("(3 leches)");
     setCakeType(is3Leches ? "3 Leches" : "Normal");
     
+    let isFlavorVainilla = product.name?.toLowerCase().includes("(vainilla)");
+    let isFlavorChocolate = product.name?.toLowerCase().includes("(chocolate)");
+    let isFlavorRedVelvet = product.name?.toLowerCase().includes("(red velvet)");
+    
+    if (isFlavorVainilla) setCakeFlavor("Vainilla");
+    else if (isFlavorChocolate) setCakeFlavor("Chocolate");
+    else if (isFlavorRedVelvet) setCakeFlavor("Red Velvet");
+    else setCakeFlavor("N/A");
+    
     let isCookieGrande = product.name?.toLowerCase().includes("(grande)");
     let isCookieChica = product.name?.toLowerCase().includes("(chica)");
     let isCookieRellena = product.name?.toLowerCase().includes("(rellena de chocolate)");
@@ -138,6 +148,9 @@ export default function CatalogPage() {
     else setCookieType("Normal");
 
     let cleanName = product.name?.replace(/\s*\(\s*3\s*leches\s*\)/i, "") || "";
+    cleanName = cleanName.replace(/\s*\(\s*vainilla\s*\)/i, "");
+    cleanName = cleanName.replace(/\s*\(\s*chocolate\s*\)/i, "");
+    cleanName = cleanName.replace(/\s*\(\s*red\s*velvet\s*\)/i, "");
     cleanName = cleanName.replace(/\s*\(\s*grande\s*\)/i, "");
     cleanName = cleanName.replace(/\s*\(\s*chica\s*\)/i, "");
     cleanName = cleanName.replace(/\s*\(\s*rellena\s*de\s*chocolate\s*\)/i, "");
@@ -156,6 +169,7 @@ export default function CatalogPage() {
     setEditingProductId(null);
     setFormData({ name: "", description: "", category: "Pasteles", price: "" });
     setCakeType("Normal");
+    setCakeFlavor("N/A");
     setCookieType("Normal");
     setSelectedFile(null);
     setIsModalOpen(true);
@@ -195,8 +209,15 @@ export default function CatalogPage() {
     let finalName = formData.name.trim();
     if (formData.category === "Pasteles") {
       finalName = finalName.replace(/\s*\(\s*3\s*leches\s*\)/i, "");
+      finalName = finalName.replace(/\s*\(\s*vainilla\s*\)/i, "");
+      finalName = finalName.replace(/\s*\(\s*chocolate\s*\)/i, "");
+      finalName = finalName.replace(/\s*\(\s*red\s*velvet\s*\)/i, "");
+      
       if (cakeType === "3 Leches") {
         finalName += " (3 Leches)";
+      }
+      if (cakeFlavor !== "N/A") {
+        finalName += ` (${cakeFlavor})`;
       }
     } else if (formData.category === "Galletas") {
       finalName = finalName.replace(/\s*\(\s*grande\s*\)/i, "");
@@ -413,17 +434,32 @@ export default function CatalogPage() {
                   </select>
                 </div>
                 {formData.category === "Pasteles" && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5 ml-1">Tipo de Pan</label>
-                    <select
-                      value={cakeType}
-                      onChange={(e) => setCakeType(e.target.value)}
-                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    >
-                      <option value="Normal">Normal</option>
-                      <option value="3 Leches">3 Leches</option>
-                    </select>
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5 ml-1">Tipo de Pan</label>
+                      <select
+                        value={cakeType}
+                        onChange={(e) => setCakeType(e.target.value)}
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <option value="Normal">Normal</option>
+                        <option value="3 Leches">3 Leches</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5 ml-1">Sabor</label>
+                      <select
+                        value={cakeFlavor}
+                        onChange={(e) => setCakeFlavor(e.target.value)}
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <option value="N/A">Sin especificar</option>
+                        <option value="Vainilla">Vainilla</option>
+                        <option value="Chocolate">Chocolate</option>
+                        <option value="Red Velvet">Red Velvet</option>
+                      </select>
+                    </div>
+                  </>
                 )}
                 {formData.category === "Galletas" && (
                   <div>
