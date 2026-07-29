@@ -30,6 +30,8 @@ export default function CatalogPage() {
     category: "Pasteles",
     price: "",
   });
+  const [cakeType, setCakeType] = useState("Normal");
+  const [cookieType, setCookieType] = useState("Normal");
 
   const supabase = createClient();
 
@@ -123,8 +125,25 @@ export default function CatalogPage() {
 
   const openEditModal = (product: any) => {
     setEditingProductId(product.id);
+    const is3Leches = product.name?.toLowerCase().includes("(3 leches)");
+    setCakeType(is3Leches ? "3 Leches" : "Normal");
+    
+    let isCookieGrande = product.name?.toLowerCase().includes("(grande)");
+    let isCookieChica = product.name?.toLowerCase().includes("(chica)");
+    let isCookieRellena = product.name?.toLowerCase().includes("(rellena de chocolate)");
+    
+    if (isCookieGrande) setCookieType("Grande");
+    else if (isCookieChica) setCookieType("Chica");
+    else if (isCookieRellena) setCookieType("Rellena de chocolate");
+    else setCookieType("Normal");
+
+    let cleanName = product.name?.replace(/\s*\(\s*3\s*leches\s*\)/i, "") || "";
+    cleanName = cleanName.replace(/\s*\(\s*grande\s*\)/i, "");
+    cleanName = cleanName.replace(/\s*\(\s*chica\s*\)/i, "");
+    cleanName = cleanName.replace(/\s*\(\s*rellena\s*de\s*chocolate\s*\)/i, "");
+    
     setFormData({
-      name: product.name || "",
+      name: cleanName,
       description: product.description || "",
       category: product.category || "Pasteles",
       price: product.price ? product.price.toString() : "",
@@ -136,6 +155,8 @@ export default function CatalogPage() {
   const openCreateModal = () => {
     setEditingProductId(null);
     setFormData({ name: "", description: "", category: "Pasteles", price: "" });
+    setCakeType("Normal");
+    setCookieType("Normal");
     setSelectedFile(null);
     setIsModalOpen(true);
   };
@@ -171,10 +192,26 @@ export default function CatalogPage() {
     }
     
     // 2. Save product to database
+    let finalName = formData.name.trim();
+    if (formData.category === "Pasteles") {
+      finalName = finalName.replace(/\s*\(\s*3\s*leches\s*\)/i, "");
+      if (cakeType === "3 Leches") {
+        finalName += " (3 Leches)";
+      }
+    } else if (formData.category === "Galletas") {
+      finalName = finalName.replace(/\s*\(\s*grande\s*\)/i, "");
+      finalName = finalName.replace(/\s*\(\s*chica\s*\)/i, "");
+      finalName = finalName.replace(/\s*\(\s*rellena\s*de\s*chocolate\s*\)/i, "");
+      
+      if (cookieType !== "Normal") {
+        finalName += ` (${cookieType})`;
+      }
+    }
+    
     let error;
     if (editingProductId) {
       const updateData: any = {
-        name: formData.name,
+        name: finalName,
         description: formData.description,
         category: formData.category,
         price: parseFloat(formData.price),
@@ -185,7 +222,7 @@ export default function CatalogPage() {
       error = updateErr;
     } else {
       const { error: insertErr } = await supabase.from("catalog_products").insert({
-        name: formData.name,
+        name: finalName,
         description: formData.description,
         category: formData.category,
         price: parseFloat(formData.price),
@@ -357,7 +394,7 @@ export default function CatalogPage() {
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1.5 ml-1">Categoría</label>
                   <select
@@ -375,7 +412,35 @@ export default function CatalogPage() {
                     <option value="Otro">Otro</option>
                   </select>
                 </div>
-                <div>
+                {formData.category === "Pasteles" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 ml-1">Tipo de Pan</label>
+                    <select
+                      value={cakeType}
+                      onChange={(e) => setCakeType(e.target.value)}
+                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="3 Leches">3 Leches</option>
+                    </select>
+                  </div>
+                )}
+                {formData.category === "Galletas" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5 ml-1">Tipo de Galleta</label>
+                    <select
+                      value={cookieType}
+                      onChange={(e) => setCookieType(e.target.value)}
+                      className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Grande">Grande</option>
+                      <option value="Chica">Chica</option>
+                      <option value="Rellena de chocolate">Rellena de chocolate</option>
+                    </select>
+                  </div>
+                )}
+                <div className={["Pasteles", "Galletas"].includes(formData.category) ? "md:col-span-2" : ""}>
                   <label className="block text-sm font-medium mb-1.5 ml-1">Precio Base ($)</label>
                   <input 
                     type="number" 
