@@ -145,6 +145,22 @@ export default function OrdersPage() {
     if (!error) fetchOrders();
   };
 
+  const deleteOrder = async (orderId: string) => {
+    if (!confirm("¿Estás seguro de eliminar este pedido? Esta acción no se puede deshacer.")) return;
+    
+    // Primero eliminamos los items del pedido por si no hay CASCADE configurado
+    await supabase.from("order_items").delete().eq("order_id", orderId);
+    
+    // Luego eliminamos el pedido
+    const { error } = await supabase.from("orders").delete().eq("id", orderId);
+    
+    if (!error) {
+      fetchOrders();
+    } else {
+      alert("Error al eliminar el pedido: " + error.message);
+    }
+  };
+
   const getTotalAmount = () => {
     return orderItemsCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   };
@@ -466,21 +482,28 @@ export default function OrdersPage() {
                       <div className="pt-3 border-t border-border/50 flex justify-between items-center" onClick={(e) => e.stopPropagation()}>
                         <span className="text-xs text-muted-foreground">Anticipo: ${(order.advance_payment || 0).toFixed(2)}</span>
                         
-                        {order.status === 'Pendiente' && (
-                          <Button size="sm" onClick={() => updateOrderStatus(order.id, 'Produccion')} variant="ghost" className="h-8 px-2 text-primary hover:bg-primary/10">
-                            Producir <ChevronRight className="w-4 h-4 ml-1" />
-                          </Button>
-                        )}
-                        {order.status === 'Produccion' && (
-                          <Button size="sm" onClick={() => updateOrderStatus(order.id, 'Listo')} variant="ghost" className="h-8 px-2 text-purple-600 hover:bg-purple-100">
-                            Terminar <ChevronRight className="w-4 h-4 ml-1" />
-                          </Button>
-                        )}
-                        {order.status === 'Listo' && (
-                          <Button size="sm" onClick={() => updateOrderStatus(order.id, 'Entregado')} variant="ghost" className="h-8 px-2 text-green-600 hover:bg-green-100">
-                            Entregar <CheckCircle2 className="w-4 h-4 ml-1" />
-                          </Button>
-                        )}
+                        <div className="flex gap-1">
+                          {order.status === 'Pendiente' && (
+                            <Button size="sm" onClick={(e) => { e.stopPropagation(); deleteOrder(order.id); }} variant="ghost" className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-600" title="Eliminar pedido">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {order.status === 'Pendiente' && (
+                            <Button size="sm" onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, 'Produccion'); }} variant="ghost" className="h-8 px-2 text-primary hover:bg-primary/10">
+                              Producir <ChevronRight className="w-4 h-4 ml-1" />
+                            </Button>
+                          )}
+                          {order.status === 'Produccion' && (
+                            <Button size="sm" onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, 'Listo'); }} variant="ghost" className="h-8 px-2 text-purple-600 hover:bg-purple-100">
+                              Terminar <ChevronRight className="w-4 h-4 ml-1" />
+                            </Button>
+                          )}
+                          {order.status === 'Listo' && (
+                            <Button size="sm" onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, 'Entregado'); }} variant="ghost" className="h-8 px-2 text-green-600 hover:bg-green-100">
+                              Entregar <CheckCircle2 className="w-4 h-4 ml-1" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )})
