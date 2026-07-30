@@ -9,18 +9,12 @@ export function RoleGuard({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useSettings();
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (!sessionStorage.getItem("erp_active_session")) {
-        sessionStorage.setItem("erp_active_session", "true");
-        const supabase = createClient();
-        supabase.auth.signOut().then(() => {
-          if (window.location.pathname !== "/login") {
-            window.location.href = "/login";
-          }
-        });
+    if (!loading && !profile) {
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.href = "/login";
       }
     }
-  }, []);
+  }, [loading, profile]);
 
   if (loading) {
     return (
