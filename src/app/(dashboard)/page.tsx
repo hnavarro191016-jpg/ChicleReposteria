@@ -408,7 +408,7 @@ export default function Dashboard() {
                         </span>
                         {client.whatsapp && (
                           <a 
-                            href={`https://wa.me/${client.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`¡Hola ${client.name.split(' ')[0]}! \uD83C\uDF89\uD83C\uDF82 De parte de todo el equipo de Chicle Repostería queremos desearte un muy ¡Feliz Cumpleaños! Que tengas un día increíble lleno de dulzura.`)}`} 
+                            href={`https://wa.me/${client.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`¡Hola ${client.name.split(' ')[0]}! De parte de todo el equipo que conforma Chicle Repostería queremos desearte un muy ¡Feliz Cumpleaños! Esperamos que pases un día verdaderamente increíble en compañía de tus seres queridos y que tu celebración esté llena de mucha alegría y dulzura.`)}`} 
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 transition-colors"
