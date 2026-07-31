@@ -710,15 +710,31 @@ export default function OrdersPage() {
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1 space-y-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-24">
+                      <div className="w-32">
                         <label className="block text-xs font-bold mb-1 text-muted-foreground uppercase">Cantidad</label>
-                        <input 
-                          type="number"
-                          min="1"
-                          value={catalogQuantity}
-                          onChange={(e) => setCatalogQuantity(parseInt(e.target.value) || 1)}
-                          className="w-full px-3 py-2 bg-background border border-border rounded-xl text-center font-bold focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
+                        <div className="flex items-center bg-background border border-border rounded-xl overflow-hidden">
+                          <button 
+                            type="button"
+                            onClick={() => setCatalogQuantity(Math.max(1, catalogQuantity - 1))}
+                            className="px-3 py-2 bg-secondary/30 hover:bg-secondary/60 text-foreground font-bold transition-colors select-none"
+                          >
+                            -
+                          </button>
+                          <input 
+                            type="number"
+                            min="1"
+                            value={catalogQuantity || ""}
+                            onChange={(e) => setCatalogQuantity(parseInt(e.target.value) || 1)}
+                            className="w-full px-0 py-2 bg-transparent text-center font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => setCatalogQuantity(catalogQuantity + 1)}
+                            className="px-3 py-2 bg-secondary/30 hover:bg-secondary/60 text-foreground font-bold transition-colors select-none"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                       
                       {products.find(p => p.id === selectedCatalogProductId)?.category === "Pasteles" && (
@@ -801,13 +817,18 @@ export default function OrdersPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-bold mb-1 text-foreground">Descripción / Nombre</label>
-                <input 
-                  type="text" 
+                <select 
                   value={customCake.name}
                   onChange={e => setCustomCake({...customCake, name: e.target.value})}
-                  placeholder="Ej. Pastel Boda 3 Pisos"
                   className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
-                />
+                >
+                  <option value="">Selecciona el tamaño...</option>
+                  <option value="Pastel mini">Pastel mini</option>
+                  <option value="Pastel chico">Pastel chico</option>
+                  <option value="Pastel mediano">Pastel mediano</option>
+                  <option value="Pastel grande">Pastel grande</option>
+                  <option value="Pastel XL">Pastel XL</option>
+                </select>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -860,13 +881,29 @@ export default function OrdersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold mb-1 text-foreground">Cantidad</label>
-                  <input 
-                    type="number"
-                    min="1"
-                    value={customCake.quantity}
-                    onChange={(e) => setCustomCake({...customCake, quantity: parseInt(e.target.value) || 1})}
-                    className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
-                  />
+                  <div className="flex items-center bg-background border border-border rounded-xl overflow-hidden w-32">
+                    <button 
+                      type="button"
+                      onClick={() => setCustomCake({...customCake, quantity: Math.max(1, customCake.quantity - 1)})}
+                      className="px-3 py-2 bg-secondary/30 hover:bg-secondary/60 text-foreground font-bold transition-colors select-none"
+                    >
+                      -
+                    </button>
+                    <input 
+                      type="number"
+                      min="1"
+                      value={customCake.quantity || ""}
+                      onChange={(e) => setCustomCake({...customCake, quantity: parseInt(e.target.value) || 1})}
+                      className="w-full px-0 py-2 bg-transparent text-center font-bold focus:outline-none text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setCustomCake({...customCake, quantity: customCake.quantity + 1})}
+                      className="px-3 py-2 bg-secondary/30 hover:bg-secondary/60 text-foreground font-bold transition-colors select-none"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-bold mb-1 text-foreground">Precio Unitario ($)</label>

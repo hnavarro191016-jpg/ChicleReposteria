@@ -127,5 +127,6 @@
   }
   html {
     @apply font-sans;
+    overscroll-behavior-y: none;
   }
 }
