@@ -1,0 +1,21 @@
+{
+  "name": "ERP Chicle Repostería",
+  "short_name": "ERP Chicle",
+  "description": "Sistema ERP para Chicle Repostería",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ec4899",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

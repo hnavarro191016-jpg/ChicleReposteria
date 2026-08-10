@@ -47,7 +47,7 @@ export function Sidebar({ onClose }: SidebarProps = {}) {
   };
 
   return (
-    <div className="w-64 border-r border-border bg-card flex flex-col h-screen sticky top-0">
+    <div className="w-64 border-r border-border bg-card flex flex-col h-[100dvh] sticky top-0">
       {/* Logo Area */}
       <div className="p-6 flex items-center justify-between">
         <div className="flex items-center gap-3">

@@ -10,6 +10,15 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "SweetERP | Chicle Manager",
   description: "Sistema ERP moderno, rápido y elegante para reposterías.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ERP Chicle",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -20,9 +29,9 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${outfit.variable} h-full antialiased`}
+      className={`${outfit.variable} antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
+      <body className="min-h-[100dvh] flex flex-col font-sans bg-background text-foreground">
         {children}
       </body>
     </html>

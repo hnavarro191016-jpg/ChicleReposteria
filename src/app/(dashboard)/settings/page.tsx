@@ -82,6 +82,17 @@ export default function SettingsPage() {
     fetchUsers();
   };
 
+  const deleteUser = async (userId: string) => {
+    if (userId === profile?.id) {
+      alert("No puedes eliminarte a ti mismo.");
+      return;
+    }
+    if (confirm("¿Estás seguro de que deseas eliminar permanentemente a este usuario? Ya no podrá acceder al sistema.")) {
+      await supabase.from("profiles").delete().eq("id", userId);
+      fetchUsers();
+    }
+  };
+
   if (contextLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-primary" /></div>;
   if (profile?.role !== "admin") return null;
 
@@ -219,17 +230,30 @@ export default function SettingsPage() {
                                 <Button size="sm" variant="outline" onClick={() => changeUserRole(user.id, 'admin')} className="rounded-lg border-primary/20 hover:bg-primary/10 text-primary h-8">
                                   Hacer Admin
                                 </Button>
+                                <Button size="sm" variant="outline" onClick={() => deleteUser(user.id)} className="rounded-lg hover:bg-destructive/10 text-destructive border-destructive/20 h-8">
+                                  Rechazar
+                                </Button>
                               </>
                             )}
                             {user.role === 'staff' && (
-                              <Button size="sm" variant="outline" onClick={() => changeUserRole(user.id, 'admin')} className="rounded-lg border-primary/20 hover:bg-primary/10 text-primary h-8">
-                                Hacer Admin
-                              </Button>
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => changeUserRole(user.id, 'admin')} className="rounded-lg border-primary/20 hover:bg-primary/10 text-primary h-8">
+                                  Hacer Admin
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => deleteUser(user.id)} className="rounded-lg hover:bg-destructive/10 text-destructive border-destructive/20 h-8">
+                                  Eliminar
+                                </Button>
+                              </>
                             )}
                             {user.role === 'admin' && (
-                              <Button size="sm" variant="outline" onClick={() => changeUserRole(user.id, 'staff')} className="rounded-lg hover:bg-orange-100 text-orange-700 h-8" disabled={user.id === profile?.id}>
-                                Degradar a Staff
-                              </Button>
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => changeUserRole(user.id, 'staff')} className="rounded-lg hover:bg-orange-100 text-orange-700 h-8" disabled={user.id === profile?.id}>
+                                  Degradar a Staff
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => deleteUser(user.id)} className="rounded-lg hover:bg-destructive/10 text-destructive border-destructive/20 h-8" disabled={user.id === profile?.id}>
+                                  Eliminar
+                                </Button>
+                              </>
                             )}
                           </div>
                         </td>
