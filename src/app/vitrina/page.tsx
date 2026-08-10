@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 
 export default function VitrinaPage() {
   const [storeName, setStoreName] = useState("Cargando...");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [catalog, setCatalog] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<string>("Todos");
   const [cart, setCart] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -25,9 +28,11 @@ export default function VitrinaPage() {
   useEffect(() => {
     async function loadStore() {
       // Load business name
-      const { data: settings } = await supabase.from("business_settings").select("store_name").single();
+      const { data: settings } = await supabase.from("business_settings").select("store_name, logo_url, whatsapp_number").single();
       if (settings) {
-        setStoreName(settings.store_name);
+        setStoreName(settings.store_name || "Pastelería");
+        setLogoUrl(settings.logo_url || "");
+        setWhatsappNumber(settings.whatsapp_number || "");
       } else {
         setStoreName("Pastelería");
       }
@@ -134,6 +139,25 @@ export default function VitrinaPage() {
 
       setOrderSuccess(true);
       setCart([]);
+      
+      // WhatsApp redirect if number exists
+      if (whatsappNumber) {
+        let text = `¡Hola! Me gustaría solicitar una cotización desde tu vitrina web:\n\n`;
+        text += `*Nombre:* ${customerName}\n`;
+        text += `*Fecha de entrega:* ${deliveryDate}\n\n`;
+        text += `*Productos:*\n`;
+        cart.forEach(item => {
+          text += `- ${item.quantity}x ${item.name}\n`;
+        });
+        if (details) {
+          text += `\n*Detalles adicionales:*\n${details}`;
+        }
+        
+        const encodedText = encodeURIComponent(text);
+        const waLink = `https://wa.me/${whatsappNumber}?text=${encodedText}`;
+        window.open(waLink, '_blank');
+      }
+
     } catch (error) {
       console.error(error);
       alert("Hubo un error al enviar tu solicitud.");
@@ -172,8 +196,12 @@ export default function VitrinaPage() {
       {/* Header */}
       <div className="bg-white px-6 py-8 rounded-b-3xl shadow-sm border-b border-pink-100 text-center relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 10px 10px, #ec4899 2px, transparent 0)', backgroundSize: '24px 24px' }}></div>
-        <div className="w-20 h-20 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center mb-4 border border-primary/20 shadow-inner relative z-10">
-          <Cake className="w-10 h-10 text-primary" />
+        <div className="w-24 h-24 mx-auto bg-primary/10 rounded-3xl flex items-center justify-center mb-4 border border-primary/20 shadow-inner relative z-10 overflow-hidden">
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+          ) : (
+            <Cake className="w-12 h-12 text-primary" />
+          )}
         </div>
         <h1 className="text-3xl font-extrabold text-foreground tracking-tight relative z-10">{storeName}</h1>
         <div className="mt-4 inline-flex items-center gap-2 bg-pink-100 text-pink-700 px-4 py-1.5 rounded-full text-sm font-semibold relative z-10">
@@ -182,32 +210,57 @@ export default function VitrinaPage() {
       </div>
 
       {/* Intro */}
-      <div className="px-6 py-8 text-center">
-        <p className="text-muted-foreground">Explora nuestros deliciosos productos, agrega lo que te guste y envíanos una solicitud para cotizarte sin compromiso. ¡Lo hacemos con amor!</p>
+      <div className="px-6 py-6 text-center">
+        <p className="text-muted-foreground text-sm">Explora nuestros deliciosos productos, agrega lo que te guste y envíanos una solicitud para cotizarte sin compromiso. ¡Lo hacemos con amor!</p>
+      </div>
+
+      {/* Categories */}
+      <div className="px-4 mb-6 overflow-x-auto pb-2 no-scrollbar">
+        <div className="flex gap-2 w-max">
+          <button 
+            onClick={() => setActiveCategory("Todos")}
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${activeCategory === "Todos" ? "bg-primary text-white shadow-md shadow-primary/20" : "bg-white text-muted-foreground border border-border hover:bg-pink-50"}`}
+          >
+            Todos
+          </button>
+          {Array.from(new Set(catalog.map(p => p.category).filter(Boolean))).map(cat => (
+            <button 
+              key={cat as string}
+              onClick={() => setActiveCategory(cat as string)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${activeCategory === cat ? "bg-primary text-white shadow-md shadow-primary/20" : "bg-white text-muted-foreground border border-border hover:bg-pink-50"}`}
+            >
+              {cat as string}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Catalog Grid */}
       <div className="px-4 grid grid-cols-1 gap-4">
-        {catalog.map(product => (
-          <div key={product.id} className="bg-white rounded-3xl p-5 shadow-sm border border-pink-50 flex items-center gap-4">
-            <div className="w-20 h-20 bg-pink-50 rounded-2xl flex items-center justify-center shrink-0 border border-pink-100">
-              <Cake className="w-8 h-8 text-pink-300" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-lg text-foreground leading-tight">{product.name}</h3>
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{product.description || "Pastel delicioso"}</p>
-              {product.category && (
-                <span className="inline-block mt-2 text-xs font-semibold px-2 py-0.5 bg-secondary text-secondary-foreground rounded-lg">{product.category}</span>
+        {catalog.filter(p => activeCategory === "Todos" || p.category === activeCategory).map(product => (
+          <div key={product.id} className="bg-white rounded-3xl p-4 shadow-sm border border-pink-50 flex items-center gap-4">
+            <div className="w-24 h-24 bg-pink-50 rounded-2xl flex items-center justify-center shrink-0 border border-pink-100 overflow-hidden">
+              {product.image_url ? (
+                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+              ) : (
+                <Cake className="w-10 h-10 text-pink-300" />
               )}
             </div>
-            <Button size="icon" onClick={() => addToCart(product)} className="shrink-0 rounded-2xl w-12 h-12 shadow-md shadow-primary/20">
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-lg text-foreground leading-tight truncate">{product.name}</h3>
+              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{product.description || "Pastel delicioso"}</p>
+              {product.category && (
+                <span className="inline-block mt-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-secondary text-secondary-foreground rounded-md">{product.category}</span>
+              )}
+            </div>
+            <Button size="icon" onClick={() => addToCart(product)} className="shrink-0 rounded-2xl w-12 h-12 shadow-md shadow-primary/20 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors">
               <Plus className="w-6 h-6" />
             </Button>
           </div>
         ))}
-        {catalog.length === 0 && (
+        {catalog.filter(p => activeCategory === "Todos" || p.category === activeCategory).length === 0 && (
           <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-pink-200">
-            <p className="text-muted-foreground">El catálogo está vacío.</p>
+            <p className="text-muted-foreground">No hay productos en esta categoría.</p>
           </div>
         )}
       </div>

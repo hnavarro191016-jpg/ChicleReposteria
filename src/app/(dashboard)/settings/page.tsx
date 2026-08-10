@@ -26,6 +26,8 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"general" | "users" | "vitrina">("general");
   const [isSaving, setIsSaving] = useState(false);
   const [storeName, setStoreName] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   const [tresLechesPrice, setTresLechesPrice] = useState("5.00");
   const [cookieFillingPrice, setCookieFillingPrice] = useState("5.00");
   
@@ -42,6 +44,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (settings) {
       setStoreName(settings.store_name);
+      if (settings.whatsapp_number) setWhatsappNumber(settings.whatsapp_number);
+      if (settings.logo_url) setLogoUrl(settings.logo_url);
       if (settings.tres_leches_extra_price !== undefined) setTresLechesPrice(settings.tres_leches_extra_price.toString());
       if (settings.cookie_filling_extra_price !== undefined) setCookieFillingPrice(settings.cookie_filling_extra_price.toString());
     }
@@ -74,6 +78,20 @@ export default function SettingsPage() {
     }
     await refreshSettings();
     setIsSaving(false);
+  };
+
+  const saveVitrinaSettings = async () => {
+    setIsSaving(true);
+    const dataToSave = {
+      whatsapp_number: whatsappNumber,
+      logo_url: logoUrl,
+    };
+    if (settings?.id) {
+      await supabase.from("business_settings").update(dataToSave).eq("id", settings.id);
+    }
+    await refreshSettings();
+    setIsSaving(false);
+    alert("¡Configuración de Vitrina guardada!");
   };
 
   const changeUserRole = async (userId: string, newRole: string) => {
@@ -201,6 +219,45 @@ export default function SettingsPage() {
             </div>
             
             <div className="space-y-6">
+              <div className="bg-card p-6 rounded-2xl border border-border space-y-4">
+                <h3 className="font-bold text-foreground">Configuración de Vitrina</h3>
+                
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Teléfono de WhatsApp</label>
+                  <input 
+                    type="tel" 
+                    value={whatsappNumber}
+                    onChange={(e) => setWhatsappNumber(e.target.value)}
+                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                    placeholder="Ej. 8123456789"
+                  />
+                  <p className="text-sm text-muted-foreground mt-2">Los pedidos de tu vitrina llegarán a este número.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">URL del Logotipo</label>
+                  <input 
+                    type="url" 
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
+                    placeholder="Ej. https://mi-dominio.com/logo.png"
+                  />
+                  <p className="text-sm text-muted-foreground mt-2">Pega aquí el enlace directo a la imagen de tu logo.</p>
+                </div>
+
+                <div className="pt-4 border-t border-border">
+                  <Button 
+                    onClick={saveVitrinaSettings} 
+                    disabled={isSaving}
+                    className="w-full rounded-xl h-12 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25"
+                  >
+                    {isSaving ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
+                    Guardar Configuración
+                  </Button>
+                </div>
+              </div>
+
               <div className="bg-secondary/30 p-6 rounded-2xl border border-border">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-semibold text-foreground">Estado de la Vitrina</span>
