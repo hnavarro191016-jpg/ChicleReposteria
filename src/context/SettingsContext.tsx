@@ -10,6 +10,8 @@ interface BusinessSettings {
   tax_rate: number;
   tres_leches_extra_price: number;
   cookie_filling_extra_price: number;
+  whatsapp_number?: string;
+  logo_url?: string;
 }
 
 interface UserProfile {
