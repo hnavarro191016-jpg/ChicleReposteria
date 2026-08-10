@@ -8,7 +8,10 @@ import {
   Save,
   Shield,
   Loader2,
-  Mail
+  Mail,
+  Store,
+  Copy,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
