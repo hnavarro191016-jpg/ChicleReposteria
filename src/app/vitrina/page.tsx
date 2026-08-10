@@ -200,7 +200,7 @@ export default function VitrinaPage() {
           {logoUrl ? (
             <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
           ) : (
-            <Cake className="w-12 h-12 text-primary" />
+            <img src="/logo.png" alt="Chicle Logo" className="w-full h-full object-cover" />
           )}
         </div>
         <h1 className="text-3xl font-extrabold text-foreground tracking-tight relative z-10">{storeName}</h1>
