@@ -21,13 +21,17 @@ export default function QuotesListPage() {
     setLoading(true);
     const { data } = await supabase
       .from("quotes")
-      .select("*, quote_items(description)")
+      .select("*, clients(name), quote_items(description)")
       .order("created_at", { ascending: false });
     
     if (data) {
       const mapped = data.map(q => {
         const isConverted = q.quote_items?.some((i: any) => i.description === "[SYSTEM_CONVERTED_FLAG]");
-        return { ...q, status: isConverted ? "converted" : q.status };
+        return { 
+          ...q, 
+          status: isConverted ? "converted" : q.status,
+          client_name: q.clients?.name || "Cliente Desconocido"
+        };
       });
       setQuotes(mapped);
     }
@@ -107,10 +111,23 @@ export default function QuotesListPage() {
               className="bg-card rounded-2xl p-6 border border-border shadow-sm hover:shadow-md transition-all cursor-pointer group hover:border-primary/50"
             >
               <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform relative">
                   <FileText className="w-6 h-6 text-primary" />
+                  {quote.notes?.includes("[SOLICITUD WEB]") && (
+                    <span className="absolute -top-2 -right-2 flex h-4 w-4">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-pink-500"></span>
+                    </span>
+                  )}
                 </div>
-                {getStatusBadge(quote.status)}
+                <div className="flex flex-col items-end gap-2">
+                  {getStatusBadge(quote.status)}
+                  {quote.notes?.includes("[SOLICITUD WEB]") && (
+                    <span className="px-2 py-0.5 bg-pink-100 text-pink-700 border border-pink-200 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                      De Vitrina
+                    </span>
+                  )}
+                </div>
               </div>
               
               <h3 className="font-bold text-lg text-foreground mb-1 line-clamp-1">{quote.client_name}</h3>

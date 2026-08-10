@@ -806,7 +806,7 @@ export default function OrdersPage() {
       {/* Modal Armar Pastel Personalizado */}
       {showCakeModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-card w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-border">
+          <div className="bg-card w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-border max-h-[90dvh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6 border-b border-border pb-4">
               <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
                 <Cake className="w-6 h-6 text-pink-500" />
