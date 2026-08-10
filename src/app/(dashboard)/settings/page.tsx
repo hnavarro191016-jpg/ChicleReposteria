@@ -234,18 +234,6 @@ export default function SettingsPage() {
                   <p className="text-sm text-muted-foreground mt-2">Los pedidos de tu vitrina llegarán a este número.</p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold mb-2">URL del Logotipo</label>
-                  <input 
-                    type="url" 
-                    value={logoUrl}
-                    onChange={(e) => setLogoUrl(e.target.value)}
-                    className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
-                    placeholder="Ej. https://mi-dominio.com/logo.png"
-                  />
-                  <p className="text-sm text-muted-foreground mt-2">Pega aquí el enlace directo a la imagen de tu logo.</p>
-                </div>
-
                 <div className="pt-4 border-t border-border">
                   <Button 
                     onClick={saveVitrinaSettings} 
