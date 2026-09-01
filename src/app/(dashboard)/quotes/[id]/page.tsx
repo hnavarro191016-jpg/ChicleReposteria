@@ -838,14 +838,20 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold mb-1 text-foreground">Nombre del Pastel</label>
-                <input 
-                  type="text" 
+                <label className="block text-sm font-bold mb-1 text-foreground">Nombre / Tamaño</label>
+                <select 
                   value={cakeDesc}
                   onChange={e => setCakeDesc(e.target.value)}
-                  placeholder="Ej. Pastel Chico Cumpleaños"
                   className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
-                />
+                >
+                  <option value="">Selecciona el tamaño...</option>
+                  <option value="Mini (10)">Mini (10)</option>
+                  <option value="Chico (14)">Chico (14)</option>
+                  <option value="Mediano (16)">Mediano (16)</option>
+                  <option value="Grande (18)">Grande (18)</option>
+                  <option value="X grande (20)">X grande (20)</option>
+                  <option value="Xxgrande (24)">Xxgrande (24)</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -869,9 +875,12 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                     className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
                   >
                     <option>Chocolate</option>
+                    <option>Fresa</option>
                     <option>Cajeta</option>
-                    <option>Cremoso de Oreo</option>
-                    <option>Cremoso de Lotus</option>
+                    <option>Cremoso de oreo</option>
+                    <option>Cremoso de lotus</option>
+                    <option>Sin Relleno</option>
+                    <option>Otro</option>
                   </select>
                 </div>
               </div>

@@ -823,11 +823,12 @@ export default function OrdersPage() {
                   className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground"
                 >
                   <option value="">Selecciona el tamaño...</option>
-                  <option value="Pastel mini">Pastel mini</option>
-                  <option value="Pastel chico">Pastel chico</option>
-                  <option value="Pastel mediano">Pastel mediano</option>
-                  <option value="Pastel grande">Pastel grande</option>
-                  <option value="Pastel XL">Pastel XL</option>
+                  <option value="Mini (10)">Mini (10)</option>
+                  <option value="Chico (14)">Chico (14)</option>
+                  <option value="Mediano (16)">Mediano (16)</option>
+                  <option value="Grande (18)">Grande (18)</option>
+                  <option value="X grande (20)">X grande (20)</option>
+                  <option value="Xxgrande (24)">Xxgrande (24)</option>
                 </select>
               </div>
               
@@ -856,7 +857,8 @@ export default function OrdersPage() {
                     <option>Chocolate</option>
                     <option>Fresa</option>
                     <option>Cajeta</option>
-                    <option>Queso Crema</option>
+                    <option>Cremoso de oreo</option>
+                    <option>Cremoso de lotus</option>
                     <option>Sin Relleno</option>
                     <option>Otro</option>
                   </select>
