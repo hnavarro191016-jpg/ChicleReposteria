@@ -69,6 +69,8 @@ export default function OrdersPage() {
     price: "",
     quantity: 1
   });
+  const [customCakeImage, setCustomCakeImage] = useState<File | null>(null);
+  const [isUploadingCustomCake, setIsUploadingCustomCake] = useState(false);
 
   const [catalogExtras, setCatalogExtras] = useState({
     is3Leches: false,
@@ -214,15 +216,34 @@ export default function OrdersPage() {
     });
   };
 
-  const addCustomCakeItem = () => {
+  const addCustomCakeItem = async () => {
     if (!customCake.name || !customCake.price) {
       alert("Por favor ponle nombre y precio al pastel.");
       return;
     }
     
+    setIsUploadingCustomCake(true);
+    let uploadedImageUrl = null;
+    if (customCakeImage) {
+      const fileExt = customCakeImage.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substr(2, 9)}_${Date.now()}.${fileExt}`;
+      const supabase = createClient();
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('product-images').upload(fileName, customCakeImage);
+      if (!uploadError && uploadData) {
+        const { data: publicUrlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
+        uploadedImageUrl = publicUrlData.publicUrl;
+      } else {
+        console.error("Error uploading image:", uploadError);
+      }
+    }
+    setIsUploadingCustomCake(false);
+
     let formattedDesc = `${customCake.name}\n• Pan: ${customCake.pan}\n• Relleno: ${customCake.relleno}\n• Betún: ${customCake.betun}`;
     if (customCake.comments.trim()) {
       formattedDesc += `\n• Notas extra: ${customCake.comments.trim()}`;
+    }
+    if (uploadedImageUrl) {
+      formattedDesc += `\n[IMAGEN]: ${uploadedImageUrl}`;
     }
     
     setOrderItemsCart([
@@ -237,6 +258,7 @@ export default function OrdersPage() {
     ]);
     
     setShowCakeModal(false);
+    setCustomCakeImage(null);
     setCustomCake({
       name: "",
       pan: "Vainilla",
@@ -250,6 +272,21 @@ export default function OrdersPage() {
 
   const removeOrderItem = (local_id: string) => {
     setOrderItemsCart(orderItemsCart.filter(i => i.local_id !== local_id));
+  };
+
+  const renderCustomName = (name: string | null) => {
+    if (!name) return null;
+    const parts = name.split('\n[IMAGEN]: ');
+    return (
+      <>
+        <span className="whitespace-pre-wrap">{parts[0]}</span>
+        {parts[1] && (
+          <a href={parts[1].trim()} target="_blank" rel="noreferrer" className="block mt-3 mb-1">
+            <img src={parts[1].trim()} alt="Referencia" className="w-24 h-24 object-cover rounded-xl border border-border shadow-sm hover:opacity-80 transition-opacity" />
+          </a>
+        )}
+      </>
+    );
   };
 
   const handleCreateOrder = async (e: React.FormEvent) => {
@@ -598,7 +635,7 @@ export default function OrdersPage() {
                     orderItemsCart.map((item) => (
                       <div key={item.local_id} className="flex justify-between items-start p-3 bg-background border border-border rounded-xl shadow-sm">
                         <div className="flex-1 pr-4">
-                          <p className="text-sm font-bold whitespace-pre-wrap">{item.custom_name}</p>
+                          <div className="text-sm font-bold whitespace-pre-wrap">{renderCustomName(item.custom_name)}</div>
                           <p className="text-xs text-muted-foreground mt-1">Cantidad: {item.quantity} x ${(item.price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <div className="flex flex-col items-end gap-2 shrink-0">
@@ -931,14 +968,32 @@ export default function OrdersPage() {
                   />
                 </div>
               </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1 text-foreground">Imagen de Referencia</label>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={e => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setCustomCakeImage(e.target.files[0]);
+                    }
+                  }}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                />
+                {customCakeImage && (
+                  <p className="text-xs text-muted-foreground mt-2">Imagen seleccionada: {customCakeImage.name}</p>
+                )}
+              </div>
             </div>
             
             <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-border">
               <Button variant="ghost" onClick={() => setShowCakeModal(false)}>
                 Cancelar
               </Button>
-              <Button onClick={addCustomCakeItem} className="bg-primary hover:bg-primary/90 text-white px-6">
-                Agregar Pastel
+              <Button onClick={addCustomCakeItem} disabled={isUploadingCustomCake} className="bg-primary hover:bg-primary/90 text-white px-6">
+                {isUploadingCustomCake ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+                {isUploadingCustomCake ? 'Subiendo...' : 'Agregar Pastel'}
               </Button>
             </div>
           </div>
@@ -975,7 +1030,7 @@ export default function OrdersPage() {
                   {selectedOrder.order_items?.map((item: any, idx: number) => (
                     <li key={idx} className="flex gap-3 items-start">
                       <Tag className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span className="text-sm font-medium whitespace-pre-wrap leading-relaxed">{item.custom_name || item.catalog_products?.name}</span>
+                      <div className="text-sm font-medium whitespace-pre-wrap leading-relaxed">{item.custom_name ? renderCustomName(item.custom_name) : item.catalog_products?.name}</div>
                     </li>
                   ))}
                   {(!selectedOrder.order_items || selectedOrder.order_items.length === 0) && (

@@ -131,9 +131,19 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
                 <div>
                   <p className="text-orange-900 font-medium">Hace casi un año (el {new Date(opp.created_at).toLocaleDateString()}), este cliente ordenó:</p>
                   <ul className="list-disc ml-5 mt-2 text-sm text-gray-600 font-medium">
-                    {opp.order_items?.map((item: any) => (
-                      <li key={item.id}>{item.custom_name}</li>
-                    ))}
+                    {opp.order_items?.map((item: any) => {
+                      const nameParts = (item.custom_name || '').split('\n[IMAGEN]: ');
+                      return (
+                        <li key={item.id}>
+                          <span className="whitespace-pre-wrap">{nameParts[0]}</span>
+                          {nameParts[1] && (
+                            <a href={nameParts[1].trim()} target="_blank" rel="noreferrer" className="block mt-2 mb-2 text-blue-500 hover:underline">
+                              Ver imagen de referencia
+                            </a>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
                 {client.whatsapp && (
@@ -190,11 +200,19 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ id: st
                   <div className="bg-secondary/30 p-4 rounded-xl">
                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Artículos</p>
                     <ul className="text-sm space-y-1 font-medium text-foreground">
-                      {order.order_items.map((item: any) => (
-                        <li key={item.id} className="flex justify-between">
-                          <span>{item.quantity}x {item.custom_name}</span>
-                        </li>
-                      ))}
+                      {order.order_items.map((item: any) => {
+                        const nameParts = (item.custom_name || '').split('\n[IMAGEN]: ');
+                        return (
+                          <li key={item.id} className="flex flex-col">
+                            <span className="whitespace-pre-wrap">{item.quantity}x {nameParts[0]}</span>
+                            {nameParts[1] && (
+                              <a href={nameParts[1].trim()} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline mt-1">
+                                Ver imagen de referencia
+                              </a>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}

@@ -200,7 +200,7 @@ export default function Dashboard() {
         if (o.status === "Listo") statusColor = "bg-purple-100 text-purple-700";
 
         const item = o.order_items?.[0];
-        const productName = item?.catalog_products?.name || item?.custom_name || "Pedido sin detalle";
+        const productName = item?.catalog_products?.name || (item?.custom_name ? item.custom_name.split('\n[IMAGEN]: ')[0].split('\n')[0] : "Pedido sin detalle");
 
         return {
           id: o.id,

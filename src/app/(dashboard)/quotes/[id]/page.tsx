@@ -48,6 +48,8 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
   const [cakeRelleno, setCakeRelleno] = useState("Chocolate");
   const [cakeBetun, setCakeBetun] = useState("Chantilly");
   const [cakeComments, setCakeComments] = useState("");
+  const [cakeImage, setCakeImage] = useState<File | null>(null);
+  const [isUploadingCakeImage, setIsUploadingCakeImage] = useState(false);
 
   // Catalog Builder Modal State
   const [showCatalogModal, setShowCatalogModal] = useState(false);
@@ -143,15 +145,34 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
     setNewItemComments("");
   };
 
-  const addCakeItem = () => {
+  const addCakeItem = async () => {
     if (!cakeDesc || !cakePrice) {
       alert("Por favor ponle nombre y precio al pastel.");
       return;
     }
     
+    setIsUploadingCakeImage(true);
+    let uploadedImageUrl = null;
+    if (cakeImage) {
+      const fileExt = cakeImage.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substr(2, 9)}_${Date.now()}.${fileExt}`;
+      const supabase = createClient();
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('product-images').upload(fileName, cakeImage);
+      if (!uploadError && uploadData) {
+        const { data: publicUrlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
+        uploadedImageUrl = publicUrlData.publicUrl;
+      } else {
+        console.error("Error uploading image:", uploadError);
+      }
+    }
+    setIsUploadingCakeImage(false);
+
     let formattedDesc = `${cakeDesc}\n• Pan: ${cakePan}\n• Relleno: ${cakeRelleno}\n• Betún: ${cakeBetun}`;
     if (cakeComments.trim()) {
       formattedDesc += `\n• Notas extra: ${cakeComments.trim()}`;
+    }
+    if (uploadedImageUrl) {
+      formattedDesc += `\n[IMAGEN]: ${uploadedImageUrl}`;
     }
     
     setItems([
@@ -164,6 +185,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
     ]);
     
     setShowCakeModal(false);
+    setCakeImage(null);
     setCakeDesc("");
     setCakePrice("");
     setCakePan("Vainilla");
@@ -220,6 +242,21 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
 
   const removeItem = (local_id: string) => {
     setItems(items.filter(i => i.local_id !== local_id));
+  };
+
+  const renderCustomName = (name: string | null) => {
+    if (!name) return null;
+    const parts = name.split('\n[IMAGEN]: ');
+    return (
+      <>
+        <span className="whitespace-pre-wrap">{parts[0]}</span>
+        {parts[1] && (
+          <a href={parts[1].trim()} target="_blank" rel="noreferrer" className="block mt-3 mb-1">
+            <img src={parts[1].trim()} alt="Referencia" className="w-24 h-24 object-cover rounded-xl border border-border shadow-sm hover:opacity-80 transition-opacity" />
+          </a>
+        )}
+      </>
+    );
   };
 
   const total = items.reduce((sum, item) => sum + item.price, 0);
@@ -793,7 +830,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
-                        <span className="whitespace-pre-wrap">{item.description}</span>
+                        <div className="whitespace-pre-wrap">{renderCustomName(item.description)}</div>
                       </td>
                       <td className="py-4 px-4 text-[#1f2937] text-right font-bold text-lg align-top">
                         ${item.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
@@ -923,14 +960,32 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
                   />
                 </div>
               </div>
+              
+              <div>
+                <label className="block text-sm font-bold mb-1 text-foreground">Imagen de Referencia</label>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={e => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setCakeImage(e.target.files[0]);
+                    }
+                  }}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                />
+                {cakeImage && (
+                  <p className="text-xs text-muted-foreground mt-2">Imagen seleccionada: {cakeImage.name}</p>
+                )}
+              </div>
             </div>
             
             <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-border">
               <Button variant="ghost" onClick={() => setShowCakeModal(false)}>
                 Cancelar
               </Button>
-              <Button onClick={addCakeItem} className="bg-primary hover:bg-primary/90 text-white px-6">
-                Agregar Pastel
+              <Button onClick={addCakeItem} disabled={isUploadingCakeImage} className="bg-primary hover:bg-primary/90 text-white px-6">
+                {isUploadingCakeImage ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+                {isUploadingCakeImage ? 'Subiendo...' : 'Agregar Pastel'}
               </Button>
             </div>
           </div>
